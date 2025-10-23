@@ -1,0 +1,172 @@
+package db
+
+import (
+	"database/sql"
+	"log"
+	"time"
+
+	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/crypto/bcrypt"
+)
+
+var DB *sql.DB
+
+func Init() error {
+	var err error
+	DB, err = sql.Open("sqlite3", "./clariphish.db")
+	if err != nil {
+		return err
+	}
+
+	if err = DB.Ping(); err != nil {
+		return err
+	}
+
+	return createTables()
+}
+
+func Close() {
+	if DB != nil {
+		DB.Close()
+	}
+}
+
+func createTables() error {
+	schema := `
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT UNIQUE NOT NULL,
+		password_hash TEXT NOT NULL,
+		api_key TEXT UNIQUE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS campaigns (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		status TEXT DEFAULT 'draft',
+		created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		launch_date TIMESTAMP,
+		completed_date TIMESTAMP,
+		template_id INTEGER,
+		page_id INTEGER,
+		smtp_id INTEGER,
+		url TEXT,
+		user_id INTEGER,
+		FOREIGN KEY (template_id) REFERENCES templates(id),
+		FOREIGN KEY (page_id) REFERENCES pages(id),
+		FOREIGN KEY (smtp_id) REFERENCES smtp(id),
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS templates (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		subject TEXT NOT NULL,
+		text TEXT,
+		html TEXT,
+		user_id INTEGER,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS pages (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		html TEXT NOT NULL,
+		capture_credentials INTEGER DEFAULT 1,
+		capture_passwords INTEGER DEFAULT 1,
+		redirect_url TEXT,
+		user_id INTEGER,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS groups (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		user_id INTEGER,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS targets (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		first_name TEXT,
+		last_name TEXT,
+		email TEXT NOT NULL,
+		position TEXT,
+		group_id INTEGER,
+		FOREIGN KEY (group_id) REFERENCES groups(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS campaign_targets (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		campaign_id INTEGER,
+		target_id INTEGER,
+		rid TEXT UNIQUE,
+		status TEXT DEFAULT 'scheduled',
+		send_date TIMESTAMP,
+		FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
+		FOREIGN KEY (target_id) REFERENCES targets(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		campaign_id INTEGER,
+		campaign_target_id INTEGER,
+		email TEXT,
+		time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		message TEXT,
+		details TEXT,
+		FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
+		FOREIGN KEY (campaign_target_id) REFERENCES campaign_targets(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS smtp (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		host TEXT NOT NULL,
+		username TEXT,
+		password TEXT,
+		from_address TEXT NOT NULL,
+		user_id INTEGER,
+		ignore_cert_errors INTEGER DEFAULT 0,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_events_campaign ON events(campaign_id);
+	CREATE INDEX IF NOT EXISTS idx_events_time ON events(time);
+	CREATE INDEX IF NOT EXISTS idx_campaign_targets_rid ON campaign_targets(rid);
+	`
+
+	_, err := DB.Exec(schema)
+	return err
+}
+
+func CreateDefaultAdmin() error {
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		hash, err := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+
+		_, err = DB.Exec("INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
+			"admin", string(hash), time.Now())
+		if err != nil {
+			return err
+		}
+
+		log.Println("Default admin user created (username: admin, password: admin)")
+		log.Println("Please change the password after first login!")
+	}
+
+	return nil
+}
