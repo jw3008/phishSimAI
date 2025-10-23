@@ -22,7 +22,11 @@ func Init() error {
 		return err
 	}
 
-	return createTables()
+	if err = createTables(); err != nil {
+		return err
+	}
+
+	return runMigrations()
 }
 
 func Close() {
@@ -38,6 +42,7 @@ func createTables() error {
 		username TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL,
 		api_key TEXT UNIQUE,
+		role TEXT DEFAULT 'user',
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -136,13 +141,99 @@ func createTables() error {
 		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 
+	CREATE TABLE IF NOT EXISTS assessments (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		title TEXT NOT NULL,
+		description TEXT,
+		deadline TIMESTAMP,
+		is_published INTEGER DEFAULT 0,
+		created_by INTEGER,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (created_by) REFERENCES users(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS questions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		assessment_id INTEGER NOT NULL,
+		question_text TEXT NOT NULL,
+		question_order INTEGER DEFAULT 0,
+		points INTEGER DEFAULT 1,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (assessment_id) REFERENCES assessments(id) ON DELETE CASCADE
+	);
+
+	CREATE TABLE IF NOT EXISTS answer_options (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		question_id INTEGER NOT NULL,
+		option_text TEXT NOT NULL,
+		is_correct INTEGER DEFAULT 0,
+		option_order INTEGER DEFAULT 0,
+		FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+	);
+
+	CREATE TABLE IF NOT EXISTS user_assessment_attempts (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		assessment_id INTEGER NOT NULL,
+		started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		completed_at TIMESTAMP,
+		score INTEGER DEFAULT 0,
+		total_points INTEGER DEFAULT 0,
+		FOREIGN KEY (user_id) REFERENCES users(id),
+		FOREIGN KEY (assessment_id) REFERENCES assessments(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS user_responses (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		attempt_id INTEGER NOT NULL,
+		question_id INTEGER NOT NULL,
+		selected_option_id INTEGER NOT NULL,
+		is_correct INTEGER DEFAULT 0,
+		points_earned INTEGER DEFAULT 0,
+		answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (attempt_id) REFERENCES user_assessment_attempts(id) ON DELETE CASCADE,
+		FOREIGN KEY (question_id) REFERENCES questions(id),
+		FOREIGN KEY (selected_option_id) REFERENCES answer_options(id)
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_events_campaign ON events(campaign_id);
 	CREATE INDEX IF NOT EXISTS idx_events_time ON events(time);
 	CREATE INDEX IF NOT EXISTS idx_campaign_targets_rid ON campaign_targets(rid);
+	CREATE INDEX IF NOT EXISTS idx_questions_assessment ON questions(assessment_id);
+	CREATE INDEX IF NOT EXISTS idx_answer_options_question ON answer_options(question_id);
+	CREATE INDEX IF NOT EXISTS idx_user_attempts_user ON user_assessment_attempts(user_id);
+	CREATE INDEX IF NOT EXISTS idx_user_attempts_assessment ON user_assessment_attempts(assessment_id);
+	CREATE INDEX IF NOT EXISTS idx_user_responses_attempt ON user_responses(attempt_id);
 	`
 
 	_, err := DB.Exec(schema)
 	return err
+}
+
+func runMigrations() error {
+	// Check if role column exists in users table
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('users') WHERE name='role'").Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	// Add role column if it doesn't exist
+	if count == 0 {
+		_, err = DB.Exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+		if err != nil {
+			return err
+		}
+		// Update existing admin user to have admin role
+		_, err = DB.Exec("UPDATE users SET role = 'admin' WHERE username = 'admin'")
+		if err != nil {
+			return err
+		}
+		log.Println("Migration: Added role column to users table")
+	}
+
+	return nil
 }
 
 func CreateDefaultAdmin() error {
@@ -158,8 +249,8 @@ func CreateDefaultAdmin() error {
 			return err
 		}
 
-		_, err = DB.Exec("INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
-			"admin", string(hash), time.Now())
+		_, err = DB.Exec("INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)",
+			"admin", string(hash), "admin", time.Now())
 		if err != nil {
 			return err
 		}

@@ -35,11 +35,14 @@
             <nav class="navbar">
                 <div class="nav-brand">ClaripHish</div>
                 <ul class="nav-menu">
-                    <li><a href="#" data-page="campaigns" class="nav-link active">Campaigns</a></li>
-                    <li><a href="#" data-page="templates" class="nav-link">Email Templates</a></li>
-                    <li><a href="#" data-page="pages" class="nav-link">Landing Pages</a></li>
-                    <li><a href="#" data-page="groups" class="nav-link">User Groups</a></li>
-                    <li><a href="#" data-page="smtp" class="nav-link">Sending Profiles</a></li>
+                    <li class="admin-only"><a href="#" data-page="campaigns" class="nav-link active">Campaigns</a></li>
+                    <li class="admin-only"><a href="#" data-page="templates" class="nav-link">Email Templates</a></li>
+                    <li class="admin-only"><a href="#" data-page="pages" class="nav-link">Landing Pages</a></li>
+                    <li class="admin-only"><a href="#" data-page="groups" class="nav-link">User Groups</a></li>
+                    <li class="admin-only"><a href="#" data-page="smtp" class="nav-link">Sending Profiles</a></li>
+                    <li class="admin-only"><a href="#" data-page="assessments" class="nav-link">Assessments</a></li>
+                    <li class="user-only"><a href="#" data-page="awareness" class="nav-link">Awareness Training</a></li>
+                    <li class="user-only"><a href="#" data-page="my-results" class="nav-link">My Results</a></li>
                 </ul>
                 <div class="nav-user">
                     <span id="current-user"></span>
@@ -91,6 +94,32 @@
                         <button id="new-smtp-btn" class="btn btn-primary">New Profile</button>
                     </div>
                     <div id="smtp-list"></div>
+                </div>
+
+                <!-- Assessments View (Admin) -->
+                <div id="assessments-view" class="view admin-only">
+                    <div class="view-header">
+                        <h2>Security Awareness Assessments</h2>
+                        <button id="new-assessment-btn" class="btn btn-primary">Create Assessment</button>
+                    </div>
+                    <div id="assessments-list"></div>
+                </div>
+
+                <!-- Awareness Training View (User) -->
+                <div id="awareness-view" class="view user-only">
+                    <div class="view-header">
+                        <h2>Security Awareness Training</h2>
+                        <p>Complete the assessments below to improve your security awareness</p>
+                    </div>
+                    <div id="awareness-list"></div>
+                </div>
+
+                <!-- My Results View (User) -->
+                <div id="my-results-view" class="view user-only">
+                    <div class="view-header">
+                        <h2>My Assessment Results</h2>
+                    </div>
+                    <div id="my-results-list"></div>
                 </div>
             </div>
         </div>

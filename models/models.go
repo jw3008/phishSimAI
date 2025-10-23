@@ -7,6 +7,7 @@ type User struct {
 	Username     string    `json:"username"`
 	PasswordHash string    `json:"-"`
 	APIKey       string    `json:"api_key,omitempty"`
+	Role         string    `json:"role"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -122,4 +123,74 @@ type SMTP struct {
 	UserID           int       `json:"user_id"`
 	IgnoreCertErrors bool      `json:"ignore_cert_errors"`
 	CreatedAt        time.Time `json:"created_at"`
+}
+
+type Assessment struct {
+	ID          int        `json:"id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Deadline    *time.Time `json:"deadline,omitempty"`
+	IsPublished bool       `json:"is_published"`
+	CreatedBy   int        `json:"created_by"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	Questions   []Question `json:"questions,omitempty"`
+}
+
+type Question struct {
+	ID            int            `json:"id"`
+	AssessmentID  int            `json:"assessment_id"`
+	QuestionText  string         `json:"question_text"`
+	QuestionOrder int            `json:"question_order"`
+	Points        int            `json:"points"`
+	CreatedAt     time.Time      `json:"created_at"`
+	AnswerOptions []AnswerOption `json:"answer_options,omitempty"`
+}
+
+type AnswerOption struct {
+	ID          int    `json:"id"`
+	QuestionID  int    `json:"question_id"`
+	OptionText  string `json:"option_text"`
+	IsCorrect   bool   `json:"is_correct,omitempty"`
+	OptionOrder int    `json:"option_order"`
+}
+
+type UserAssessmentAttempt struct {
+	ID           int        `json:"id"`
+	UserID       int        `json:"user_id"`
+	AssessmentID int        `json:"assessment_id"`
+	StartedAt    time.Time  `json:"started_at"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
+	Score        int        `json:"score"`
+	TotalPoints  int        `json:"total_points"`
+	Responses    []UserResponse `json:"responses,omitempty"`
+}
+
+type UserResponse struct {
+	ID               int       `json:"id"`
+	AttemptID        int       `json:"attempt_id"`
+	QuestionID       int       `json:"question_id"`
+	SelectedOptionID int       `json:"selected_option_id"`
+	IsCorrect        bool      `json:"is_correct"`
+	PointsEarned     int       `json:"points_earned"`
+	AnsweredAt       time.Time `json:"answered_at"`
+}
+
+type AssessmentStats struct {
+	TotalUsers     int     `json:"total_users"`
+	CompletedUsers int     `json:"completed_users"`
+	PendingUsers   int     `json:"pending_users"`
+	AverageScore   float64 `json:"average_score"`
+	PassRate       float64 `json:"pass_rate"`
+}
+
+type UserAssessmentResult struct {
+	UserID       int        `json:"user_id"`
+	Username     string     `json:"username"`
+	AttemptID    int        `json:"attempt_id"`
+	Score        int        `json:"score"`
+	TotalPoints  int        `json:"total_points"`
+	Percentage   float64    `json:"percentage"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
+	Status       string     `json:"status"`
 }

@@ -436,3 +436,106 @@ input[type="checkbox"] {
 .checkbox-group label {
     margin-bottom: 0;
 }
+
+/* Assessment Specific Styles */
+.question-block {
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.question-block h4 {
+    color: #667eea;
+    margin-bottom: 15px;
+}
+
+.question-block h5 {
+    margin: 15px 0 10px 0;
+    color: #2c3e50;
+}
+
+.question-preview {
+    background: #f8f9fa;
+    padding: 15px;
+    border-left: 4px solid #667eea;
+    margin-bottom: 15px;
+}
+
+.question-preview ul {
+    margin-top: 10px;
+    margin-left: 20px;
+}
+
+.question-result {
+    margin-bottom: 15px;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.question-result h4 {
+    margin-bottom: 10px;
+}
+
+/* Badge Colors */
+.badge-success {
+    background-color: #2ecc71;
+}
+
+.badge-warning {
+    background-color: #f39c12;
+}
+
+.badge-danger {
+    background-color: #e74c3c;
+}
+
+.badge-draft {
+    background-color: #95a5a6;
+}
+
+/* Role-based visibility */
+.admin-only {
+    display: block;
+}
+
+.user-only {
+    display: none;
+}
+
+/* Progress bar styles */
+.progress-bar {
+    background: #e0e0e0;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    background: #4CAF50;
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+/* Radio button labels */
+input[type="radio"] {
+    width: auto;
+    margin-right: 10px;
+}
+
+/* Table responsive */
+@media (max-width: 768px) {
+    table {
+        font-size: 14px;
+    }
+
+    .card-actions {
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .btn-small {
+        width: 100%;
+    }
+}
