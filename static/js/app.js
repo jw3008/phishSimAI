@@ -1,6 +1,7 @@
 // Main App State
 const app = {
     user: null,
+    userRole: null,
     currentView: 'campaigns'
 };
 
@@ -85,13 +86,40 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
     if (result && result.success) {
         app.user = result.user;
+        app.userRole = result.role;
         document.getElementById('current-user').textContent = result.user;
+
+        // Show/hide navigation based on role
+        updateUIForRole(result.role);
+
         showPage('dashboard');
-        loadCampaigns();
+
+        // Load appropriate view based on role
+        if (result.role === 'admin') {
+            showView('campaigns');
+            loadCampaigns();
+        } else {
+            showView('awareness');
+            loadAwarenessAssessments();
+        }
     } else {
         errorDiv.textContent = 'Invalid credentials';
     }
 });
+
+// Update UI based on user role
+function updateUIForRole(role) {
+    const adminElements = document.querySelectorAll('.admin-only');
+    const userElements = document.querySelectorAll('.user-only');
+
+    if (role === 'admin') {
+        adminElements.forEach(el => el.style.display = '');
+        userElements.forEach(el => el.style.display = 'none');
+    } else {
+        adminElements.forEach(el => el.style.display = 'none');
+        userElements.forEach(el => el.style.display = '');
+    }
+}
 
 // Logout
 document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -114,6 +142,9 @@ document.querySelectorAll('.nav-link').forEach(link => {
             case 'pages': loadPages(); break;
             case 'groups': loadGroups(); break;
             case 'smtp': loadSMTP(); break;
+            case 'assessments': loadAssessments(); break;
+            case 'awareness': loadAwarenessAssessments(); break;
+            case 'my-results': loadMyResults(); break;
         }
     });
 });
@@ -695,14 +726,546 @@ window.addEventListener('click', (e) => {
     }
 });
 
+// ============================================
+// ASSESSMENT MANAGEMENT (ADMIN)
+// ============================================
+
+async function loadAssessments() {
+    const assessments = await api.get('/assessments');
+    const container = document.getElementById('assessments-list');
+
+    if (!assessments || assessments.length === 0) {
+        container.innerHTML = '<div class="empty-state"><h3>No assessments yet</h3><p>Create your first security awareness assessment</p></div>';
+        return;
+    }
+
+    container.innerHTML = assessments.map(a => `
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">${a.title}</div>
+                    <span class="badge badge-${a.is_published ? 'success' : 'draft'}">${a.is_published ? 'Published' : 'Draft'}</span>
+                    ${a.deadline ? `<span style="margin-left: 10px;">Deadline: ${new Date(a.deadline).toLocaleDateString()}</span>` : ''}
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-small btn-primary" onclick="viewAssessmentStats(${a.id})">Stats</button>
+                    <button class="btn btn-small btn-secondary" onclick="viewAssessment(${a.id})">Edit</button>
+                    ${!a.is_published ? `<button class="btn btn-small btn-success" onclick="publishAssessment(${a.id})">Publish</button>` : ''}
+                    <button class="btn btn-small btn-danger" onclick="deleteAssessment(${a.id})">Delete</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function viewAssessment(id) {
+    const assessment = await api.get(`/assessments/${id}`);
+    if (!assessment) return;
+
+    const questionsHTML = assessment.questions && assessment.questions.length > 0 ?
+        assessment.questions.map((q, idx) => `
+            <div class="question-preview">
+                <strong>Question ${idx + 1}:</strong> ${q.question_text} (${q.points} points)<br>
+                <ul>
+                    ${q.answer_options.map(opt => `
+                        <li ${opt.is_correct ? 'style="color: green; font-weight: bold;"' : ''}>${opt.option_text}</li>
+                    `).join('')}
+                </ul>
+            </div>
+        `).join('')
+        : '<p>No questions yet</p>';
+
+    showModal(`Assessment: ${assessment.title}`, `
+        <p><strong>Description:</strong> ${assessment.description || 'N/A'}</p>
+        <p><strong>Deadline:</strong> ${assessment.deadline ? new Date(assessment.deadline).toLocaleString() : 'No deadline'}</p>
+        <p><strong>Status:</strong> ${assessment.is_published ? 'Published' : 'Draft'}</p>
+        <hr>
+        <h3>Questions</h3>
+        ${questionsHTML}
+        <br>
+        <button class="btn btn-primary" onclick="editAssessmentForm(${id})">Edit Assessment</button>
+    `);
+}
+
+function editAssessmentForm(id) {
+    // For simplicity, we'll redirect to the create form with pre-filled data
+    // In production, you'd want a more sophisticated edit interface
+    alert('Edit functionality - Would open a detailed editor. For now, please create a new assessment or use the API.');
+}
+
+async function publishAssessment(id) {
+    if (!confirm('Publish this assessment? Users will be able to see and take it.')) return;
+    await api.post(`/assessments/${id}/publish`);
+    loadAssessments();
+}
+
+async function deleteAssessment(id) {
+    if (!confirm('Are you sure you want to delete this assessment?')) return;
+    await api.delete(`/assessments/${id}`);
+    loadAssessments();
+}
+
+async function viewAssessmentStats(id) {
+    const [stats, results] = await Promise.all([
+        api.get(`/assessments/${id}/stats`),
+        api.get(`/assessments/${id}/results`)
+    ]);
+
+    const resultsTable = results && results.length > 0 ? `
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Status</th>
+                    <th>Score</th>
+                    <th>Percentage</th>
+                    <th>Completed</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${results.map(r => `
+                    <tr>
+                        <td>${r.username}</td>
+                        <td><span class="badge badge-${r.status === 'Completed' ? 'success' : r.status === 'In Progress' ? 'warning' : 'draft'}">${r.status}</span></td>
+                        <td>${r.score} / ${r.total_points}</td>
+                        <td>${r.percentage.toFixed(1)}%</td>
+                        <td>${r.completed_at ? new Date(r.completed_at).toLocaleString() : '-'}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    ` : '<p>No user results yet</p>';
+
+    showModal('Assessment Statistics', `
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value">${stats.completed_users}</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.pending_users}</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.average_score.toFixed(1)}%</div>
+                <div class="stat-label">Average Score</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.pass_rate.toFixed(1)}%</div>
+                <div class="stat-label">Pass Rate (≥70%)</div>
+            </div>
+        </div>
+        <br>
+        <h3>User Results</h3>
+        ${resultsTable}
+    `);
+}
+
+document.getElementById('new-assessment-btn')?.addEventListener('click', () => showAssessmentForm());
+
+function showAssessmentForm() {
+    const questions = [{id: 1}]; // Start with one question
+
+    function renderForm(questionsData) {
+        const questionsHTML = questionsData.map((q, idx) => `
+            <div class="question-block" data-qid="${q.id}" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                <h4>Question ${idx + 1}</h4>
+                <div class="form-group">
+                    <label>Question Text</label>
+                    <textarea name="question_text_${q.id}" required style="width: 100%; min-height: 80px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Points</label>
+                    <input type="number" name="points_${q.id}" value="1" min="1" required>
+                </div>
+                <h5>Answer Options</h5>
+                ${[1,2,3,4].map(optNum => `
+                    <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
+                        <input type="radio" name="correct_${q.id}" value="${optNum}" ${optNum === 1 ? 'checked' : ''} required>
+                        <input type="text" name="option_${q.id}_${optNum}" placeholder="Option ${optNum}" required style="flex: 1;">
+                    </div>
+                `).join('')}
+                ${questionsData.length > 1 ? `<button type="button" class="btn btn-small btn-danger" onclick="removeQuestion(${q.id})">Remove Question</button>` : ''}
+            </div>
+        `).join('');
+
+        return `
+            <form id="assessment-form">
+                <div class="form-group">
+                    <label>Assessment Title</label>
+                    <input type="text" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" style="width: 100%; min-height: 80px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Deadline (optional)</label>
+                    <input type="datetime-local" name="deadline">
+                </div>
+                <hr>
+                <h3>Questions</h3>
+                <div id="questions-container">${questionsHTML}</div>
+                <button type="button" class="btn btn-secondary" id="add-question-btn">Add Question</button>
+                <br><br>
+                <button type="submit" class="btn btn-primary">Create Assessment</button>
+            </form>
+        `;
+    }
+
+    showModal('Create Assessment', renderForm(questions));
+
+    let questionId = 2;
+    const questionsState = questions;
+
+    document.getElementById('add-question-btn').addEventListener('click', () => {
+        questionsState.push({id: questionId++});
+        document.getElementById('questions-container').innerHTML = renderForm(questionsState).match(/<div class="question-block"[\s\S]*<\/div>\s*<\/div>/g).join('');
+    });
+
+    window.removeQuestion = function(qid) {
+        const idx = questionsState.findIndex(q => q.id === qid);
+        if (idx !== -1) {
+            questionsState.splice(idx, 1);
+            document.getElementById('questions-container').innerHTML = renderForm(questionsState).match(/<div class="question-block"[\s\S]*<\/div>\s*<\/div>/g).join('');
+        }
+    };
+
+    document.getElementById('assessment-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+
+        const questionsData = questionsState.map((q, idx) => {
+            const correctOption = parseInt(formData.get(`correct_${q.id}`));
+            return {
+                question_text: formData.get(`question_text_${q.id}`),
+                question_order: idx,
+                points: parseInt(formData.get(`points_${q.id}`)),
+                answer_options: [1, 2, 3, 4].map(optNum => ({
+                    option_text: formData.get(`option_${q.id}_${optNum}`),
+                    is_correct: optNum === correctOption,
+                    option_order: optNum - 1
+                }))
+            };
+        });
+
+        const deadline = formData.get('deadline') ? new Date(formData.get('deadline')).toISOString() : null;
+
+        const data = {
+            title: formData.get('title'),
+            description: formData.get('description'),
+            deadline: deadline,
+            questions: questionsData
+        };
+
+        const result = await api.post('/assessments', data);
+        if (result && result.success) {
+            closeModal();
+            loadAssessments();
+        }
+    });
+}
+
+// ============================================
+// AWARENESS TRAINING (USER)
+// ============================================
+
+async function loadAwarenessAssessments() {
+    const assessments = await api.get('/user/assessments');
+    const container = document.getElementById('awareness-list');
+
+    if (!assessments || assessments.length === 0) {
+        container.innerHTML = '<div class="empty-state"><h3>No assessments available</h3><p>Check back later for new training assessments</p></div>';
+        return;
+    }
+
+    container.innerHTML = assessments.map(a => `
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">${a.title}</div>
+                    <p style="margin: 5px 0; color: #666;">${a.description || ''}</p>
+                    ${a.deadline ? `<p style="margin: 5px 0; color: #d32f2f;"><strong>Deadline:</strong> ${new Date(a.deadline).toLocaleString()}</p>` : ''}
+                    <span class="badge badge-${a.status === 'Completed' ? 'success' : a.status === 'In Progress' ? 'warning' : 'draft'}">${a.status}</span>
+                    ${a.status === 'Completed' ? `<span style="margin-left: 10px;">Score: ${a.score}/${a.total_points} (${a.percentage.toFixed(1)}%)</span>` : ''}
+                </div>
+                <div class="card-actions">
+                    ${a.status === 'Not Started' ?
+                        `<button class="btn btn-primary" onclick="startAssessment(${a.id})">Start Assessment</button>` :
+                        a.status === 'In Progress' ?
+                        `<button class="btn btn-warning" onclick="continueAssessment(${a.id}, ${a.attempt_id})">Continue</button>` :
+                        `<button class="btn btn-secondary" onclick="viewMyResult(${a.attempt_id})">View Result</button>`
+                    }
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function startAssessment(assessmentId) {
+    const result = await api.post(`/user/assessments/${assessmentId}/start`);
+    if (result && result.success) {
+        takeAssessment(assessmentId, result.attempt_id);
+    }
+}
+
+async function continueAssessment(assessmentId, attemptId) {
+    takeAssessment(assessmentId, attemptId);
+}
+
+async function takeAssessment(assessmentId, attemptId) {
+    const detail = await api.get(`/user/assessments/${assessmentId}`);
+    if (!detail || !detail.assessment) return;
+
+    const assessment = detail.assessment;
+    let currentQuestionIndex = 0;
+    const userAnswers = {};
+
+    function renderQuestion() {
+        const q = assessment.questions[currentQuestionIndex];
+        const progress = ((currentQuestionIndex + 1) / assessment.questions.length * 100).toFixed(0);
+
+        return `
+            <div style="margin-bottom: 20px;">
+                <div style="background: #e0e0e0; height: 10px; border-radius: 5px; margin-bottom: 20px;">
+                    <div style="background: #4CAF50; height: 100%; width: ${progress}%; border-radius: 5px;"></div>
+                </div>
+                <p style="color: #666;">Question ${currentQuestionIndex + 1} of ${assessment.questions.length}</p>
+            </div>
+            <h3>${q.question_text}</h3>
+            <p style="color: #666; margin-bottom: 20px;">Points: ${q.points}</p>
+            <form id="question-form">
+                ${q.answer_options.map(opt => `
+                    <div class="form-group" style="margin: 15px 0;">
+                        <label style="display: flex; align-items: center; padding: 15px; border: 2px solid #ddd; border-radius: 5px; cursor: pointer;">
+                            <input type="radio" name="answer" value="${opt.id}" required style="margin-right: 10px;">
+                            <span>${opt.option_text}</span>
+                        </label>
+                    </div>
+                `).join('')}
+                <br>
+                <div style="display: flex; gap: 10px; justify-content: space-between;">
+                    ${currentQuestionIndex > 0 ? '<button type="button" class="btn btn-secondary" id="prev-btn">Previous</button>' : '<div></div>'}
+                    <button type="submit" class="btn btn-primary">${currentQuestionIndex < assessment.questions.length - 1 ? 'Next Question' : 'Submit Assessment'}</button>
+                </div>
+            </form>
+        `;
+    }
+
+    showModal(`Taking Assessment: ${assessment.title}`, renderQuestion());
+
+    // Handle form submission
+    document.getElementById('question-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const selectedOption = parseInt(formData.get('answer'));
+
+        const q = assessment.questions[currentQuestionIndex];
+        userAnswers[q.id] = selectedOption;
+
+        // Save the response to backend
+        await api.post(`/user/assessments/attempt/${attemptId}/submit`, {
+            question_id: q.id,
+            selected_option_id: selectedOption
+        });
+
+        // Move to next question or complete
+        if (currentQuestionIndex < assessment.questions.length - 1) {
+            currentQuestionIndex++;
+            showModal(`Taking Assessment: ${assessment.title}`, renderQuestion());
+            setupQuestionHandlers();
+        } else {
+            // Complete the assessment
+            const result = await api.post(`/user/assessments/attempt/${attemptId}/complete`);
+            if (result && result.success) {
+                showModal('Assessment Completed!', `
+                    <div style="text-align: center;">
+                        <h2 style="color: #4CAF50;">Congratulations!</h2>
+                        <p>You have completed the assessment.</p>
+                        <div class="stats">
+                            <div class="stat-item">
+                                <div class="stat-value">${result.score}</div>
+                                <div class="stat-label">Score</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${result.total}</div>
+                                <div class="stat-label">Total Points</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${result.percentage.toFixed(1)}%</div>
+                                <div class="stat-label">Percentage</div>
+                            </div>
+                        </div>
+                        <br>
+                        <button class="btn btn-primary" onclick="viewMyResult(${result.attempt_id})">View Detailed Results</button>
+                        <button class="btn btn-secondary" onclick="closeModal(); loadAwarenessAssessments();">Close</button>
+                    </div>
+                `);
+            }
+        }
+    });
+
+    function setupQuestionHandlers() {
+        document.getElementById('question-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const selectedOption = parseInt(formData.get('answer'));
+
+            const q = assessment.questions[currentQuestionIndex];
+            userAnswers[q.id] = selectedOption;
+
+            await api.post(`/user/assessments/attempt/${attemptId}/submit`, {
+                question_id: q.id,
+                selected_option_id: selectedOption
+            });
+
+            if (currentQuestionIndex < assessment.questions.length - 1) {
+                currentQuestionIndex++;
+                showModal(`Taking Assessment: ${assessment.title}`, renderQuestion());
+                setupQuestionHandlers();
+            } else {
+                const result = await api.post(`/user/assessments/attempt/${attemptId}/complete`);
+                if (result && result.success) {
+                    showModal('Assessment Completed!', `
+                        <div style="text-align: center;">
+                            <h2 style="color: #4CAF50;">Congratulations!</h2>
+                            <p>You have completed the assessment.</p>
+                            <div class="stats">
+                                <div class="stat-item">
+                                    <div class="stat-value">${result.score}</div>
+                                    <div class="stat-label">Score</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${result.total}</div>
+                                    <div class="stat-label">Total Points</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${result.percentage.toFixed(1)}%</div>
+                                    <div class="stat-label">Percentage</div>
+                                </div>
+                            </div>
+                            <br>
+                            <button class="btn btn-primary" onclick="viewMyResult(${result.attempt_id})">View Detailed Results</button>
+                            <button class="btn btn-secondary" onclick="closeModal(); loadAwarenessAssessments();">Close</button>
+                        </div>
+                    `);
+                }
+            }
+        });
+
+        const prevBtn = document.getElementById('prev-btn');
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                currentQuestionIndex--;
+                showModal(`Taking Assessment: ${assessment.title}`, renderQuestion());
+                setupQuestionHandlers();
+            });
+        }
+    }
+
+    setupQuestionHandlers();
+}
+
+// ============================================
+// MY RESULTS (USER)
+// ============================================
+
+async function loadMyResults() {
+    const results = await api.get('/user/results');
+    const container = document.getElementById('my-results-list');
+
+    if (!results || results.length === 0) {
+        container.innerHTML = '<div class="empty-state"><h3>No results yet</h3><p>Complete assessments to see your results here</p></div>';
+        return;
+    }
+
+    container.innerHTML = results.map(r => `
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">${r.title}</div>
+                    <p style="margin: 5px 0;">Score: ${r.score} / ${r.total_points} (${r.percentage.toFixed(1)}%)</p>
+                    <p style="margin: 5px 0; color: #666;">Completed: ${new Date(r.completed_at).toLocaleString()}</p>
+                    <span class="badge badge-${r.percentage >= 70 ? 'success' : 'danger'}">${r.percentage >= 70 ? 'Passed' : 'Failed'}</span>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-primary" onclick="viewMyResult(${r.attempt_id})">View Details</button>
+                    <button class="btn btn-secondary" onclick="downloadResultPDF(${r.attempt_id})">Download PDF</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function viewMyResult(attemptId) {
+    const result = await api.get(`/user/results/${attemptId}`);
+    if (!result) return;
+
+    const responsesHTML = result.responses && result.responses.length > 0 ?
+        result.responses.map((r, idx) => `
+            <div class="question-result" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; background: ${r.is_correct ? '#e8f5e9' : '#ffebee'};">
+                <h4>Question ${idx + 1}</h4>
+                <p><strong>${r.question_text}</strong></p>
+                <p>Your answer: <span style="${r.is_correct ? 'color: green;' : 'color: red;'}">${r.selected_option}</span></p>
+                ${!r.is_correct ? `<p>Correct answer: <span style="color: green;">${r.correct_answer}</span></p>` : ''}
+                <p>Points earned: ${r.points_earned} / ${r.question_points}</p>
+            </div>
+        `).join('')
+        : '<p>No responses recorded</p>';
+
+    showModal('Assessment Result Details', `
+        <h3>${result.assessment_title}</h3>
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value">${result.score}</div>
+                <div class="stat-label">Score</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${result.total_points}</div>
+                <div class="stat-label">Total Points</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${result.percentage.toFixed(1)}%</div>
+                <div class="stat-label">Percentage</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" style="color: ${result.percentage >= 70 ? '#4CAF50' : '#d32f2f'}">${result.percentage >= 70 ? 'PASS' : 'FAIL'}</div>
+                <div class="stat-label">Result</div>
+            </div>
+        </div>
+        <p><strong>Completed:</strong> ${new Date(result.completed_at).toLocaleString()}</p>
+        <hr>
+        <h3>Question Review</h3>
+        ${responsesHTML}
+    `);
+}
+
+function downloadResultPDF(attemptId) {
+    // Open PDF download in new window
+    window.open(`/api/user/results/${attemptId}/pdf`, '_blank');
+}
+
 // Initialize
 (async function() {
     const user = await api.get('/user');
     if (user && user.id) {
         app.user = user.username;
+        app.userRole = user.role;
         document.getElementById('current-user').textContent = user.username;
+
+        // Update UI for role
+        updateUIForRole(user.role);
+
         showPage('dashboard');
-        loadCampaigns();
+
+        // Load appropriate view based on role
+        if (user.role === 'admin') {
+            showView('campaigns');
+            loadCampaigns();
+        } else {
+            showView('awareness');
+            loadAwarenessAssessments();
+        }
     } else {
         showPage('login');
     }
