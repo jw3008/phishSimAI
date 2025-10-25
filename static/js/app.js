@@ -143,6 +143,7 @@ document.querySelectorAll('.nav-link').forEach(link => {
             case 'groups': loadGroups(); break;
             case 'smtp': loadSMTP(); break;
             case 'assessments': loadAssessments(); break;
+            case 'user-management': loadUsers(); break;
             case 'awareness': loadAwarenessAssessments(); break;
             case 'my-results': loadMyResults(); break;
         }
@@ -1243,6 +1244,201 @@ async function viewMyResult(attemptId) {
 function downloadResultPDF(attemptId) {
     // Open PDF download in new window
     window.open(`/api/user/results/${attemptId}/pdf`, '_blank');
+}
+
+// ============================================
+// USER MANAGEMENT (ADMIN)
+// ============================================
+
+async function loadUsers() {
+    const users = await api.get('/users');
+    const container = document.getElementById('users-list');
+
+    if (!users || users.length === 0) {
+        container.innerHTML = '<div class="empty-state"><h3>No users yet</h3><p>Create your first user</p></div>';
+        return;
+    }
+
+    container.innerHTML = users.map(u => `
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">${u.username}</div>
+                    <span class="badge badge-${u.role === 'admin' ? 'success' : 'draft'}">${u.role.toUpperCase()}</span>
+                    <span style="margin-left: 10px; color: #666;">Created: ${new Date(u.created_at).toLocaleDateString()}</span>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-small btn-secondary" onclick="showChangeRoleForm(${u.id}, '${u.username}', '${u.role}')">Change Role</button>
+                    <button class="btn btn-small btn-warning" onclick="showResetPasswordForm(${u.id}, '${u.username}')">Reset Password</button>
+                    <button class="btn btn-small btn-danger" onclick="deleteUser(${u.id}, '${u.username}')">Delete</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function deleteUser(id, username) {
+    if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
+
+    const result = await api.delete(`/users/${id}`);
+    if (result && result.success) {
+        loadUsers();
+    } else {
+        alert(result.error || 'Failed to delete user');
+    }
+}
+
+function showChangeRoleForm(userId, username, currentRole) {
+    showModal(`Change Role for ${username}`, `
+        <form id="change-role-form">
+            <div class="form-group">
+                <label>Current Role: <strong>${currentRole}</strong></label>
+            </div>
+            <div class="form-group">
+                <label>New Role</label>
+                <select name="role" required>
+                    <option value="">Select role...</option>
+                    <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin (Full Access)</option>
+                    <option value="user" ${currentRole === 'user' ? 'selected' : ''}>User (Awareness Training Only)</option>
+                </select>
+            </div>
+            <div class="info-box" style="background: #e3f2fd; padding: 15px; margin: 15px 0; border-radius: 5px;">
+                <h4 style="margin-top: 0;">Role Permissions (Least Privilege Principle)</h4>
+                <p><strong>Admin:</strong></p>
+                <ul>
+                    <li>Full access to phishing simulation campaigns</li>
+                    <li>Create and manage assessments</li>
+                    <li>Manage users</li>
+                    <li>View all statistics and reports</li>
+                </ul>
+                <p><strong>User:</strong></p>
+                <ul>
+                    <li>Access to awareness training only</li>
+                    <li>Take published assessments</li>
+                    <li>View own results</li>
+                    <li>NO access to phishing simulation or admin features</li>
+                </ul>
+            </div>
+            <button type="submit" class="btn btn-primary">Update Role</button>
+        </form>
+    `);
+
+    document.getElementById('change-role-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const role = formData.get('role');
+
+        const result = await api.put(`/users/${userId}`, { role });
+        if (result && result.success) {
+            closeModal();
+            loadUsers();
+        } else {
+            alert(result.error || 'Failed to update role');
+        }
+    });
+}
+
+function showResetPasswordForm(userId, username) {
+    showModal(`Reset Password for ${username}`, `
+        <form id="reset-password-form">
+            <div class="form-group">
+                <label>New Password</label>
+                <input type="password" name="new_password" minlength="6" required>
+                <small>Minimum 6 characters</small>
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <input type="password" name="confirm_password" minlength="6" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Reset Password</button>
+        </form>
+    `);
+
+    document.getElementById('reset-password-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const newPassword = formData.get('new_password');
+        const confirmPassword = formData.get('confirm_password');
+
+        if (newPassword !== confirmPassword) {
+            alert('Passwords do not match!');
+            return;
+        }
+
+        const result = await api.put(`/users/${userId}`, { new_password: newPassword });
+        if (result && result.success) {
+            closeModal();
+            alert('Password reset successfully');
+        } else {
+            alert(result.error || 'Failed to reset password');
+        }
+    });
+}
+
+document.getElementById('new-user-btn')?.addEventListener('click', () => showUserForm());
+
+function showUserForm() {
+    showModal('Create New User', `
+        <form id="user-form">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" name="username" required>
+                <small>Must be unique</small>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" minlength="6" required>
+                <small>Minimum 6 characters</small>
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <input type="password" name="confirm_password" minlength="6" required>
+            </div>
+            <div class="form-group">
+                <label>Role</label>
+                <select name="role" required>
+                    <option value="">Select role...</option>
+                    <option value="user">User (Awareness Training Only) - Recommended</option>
+                    <option value="admin">Admin (Full Access)</option>
+                </select>
+            </div>
+            <div class="info-box" style="background: #fff3cd; padding: 15px; margin: 15px 0; border-radius: 5px; border-left: 4px solid #ffc107;">
+                <h4 style="margin-top: 0;">🔒 Least Privilege Principle</h4>
+                <p>By default, create users with <strong>"User"</strong> role. Only assign <strong>"Admin"</strong> role when necessary.</p>
+                <p><strong>User role grants:</strong></p>
+                <ul>
+                    <li>✅ Access to security awareness training</li>
+                    <li>✅ Ability to take assessments</li>
+                    <li>✅ View own results and performance</li>
+                    <li>❌ NO access to phishing simulation features</li>
+                    <li>❌ NO admin capabilities</li>
+                </ul>
+            </div>
+            <button type="submit" class="btn btn-primary">Create User</button>
+        </form>
+    `);
+
+    document.getElementById('user-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const username = formData.get('username');
+        const password = formData.get('password');
+        const confirmPassword = formData.get('confirm_password');
+        const role = formData.get('role');
+
+        if (password !== confirmPassword) {
+            alert('Passwords do not match!');
+            return;
+        }
+
+        const result = await api.post('/users', { username, password, role });
+        if (result && result.success) {
+            closeModal();
+            loadUsers();
+        } else {
+            alert(result.error || 'Failed to create user');
+        }
+    });
 }
 
 // Initialize

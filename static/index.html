@@ -41,6 +41,7 @@
                     <li class="admin-only"><a href="#" data-page="groups" class="nav-link">User Groups</a></li>
                     <li class="admin-only"><a href="#" data-page="smtp" class="nav-link">Sending Profiles</a></li>
                     <li class="admin-only"><a href="#" data-page="assessments" class="nav-link">Assessments</a></li>
+                    <li class="admin-only"><a href="#" data-page="user-management" class="nav-link">User Management</a></li>
                     <li class="user-only"><a href="#" data-page="awareness" class="nav-link">Awareness Training</a></li>
                     <li class="user-only"><a href="#" data-page="my-results" class="nav-link">My Results</a></li>
                 </ul>
@@ -120,6 +121,15 @@
                         <h2>My Assessment Results</h2>
                     </div>
                     <div id="my-results-list"></div>
+                </div>
+
+                <!-- User Management View (Admin) -->
+                <div id="user-management-view" class="view admin-only">
+                    <div class="view-header">
+                        <h2>User Management</h2>
+                        <button id="new-user-btn" class="btn btn-primary">Add User</button>
+                    </div>
+                    <div id="users-list"></div>
                 </div>
             </div>
         </div>

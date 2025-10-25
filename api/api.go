@@ -54,6 +54,13 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/smtp/{id}", RequireAdmin(UpdateSMTPConfig)).Methods("PUT")
 	r.HandleFunc("/smtp/{id}", RequireAdmin(DeleteSMTPConfig)).Methods("DELETE")
 
+	// User Management routes (Admin only)
+	r.HandleFunc("/users", RequireAdmin(GetUsers)).Methods("GET")
+	r.HandleFunc("/users", RequireAdmin(CreateUser)).Methods("POST")
+	r.HandleFunc("/users/{id}", RequireAdmin(GetUser)).Methods("GET")
+	r.HandleFunc("/users/{id}", RequireAdmin(UpdateUser)).Methods("PUT")
+	r.HandleFunc("/users/{id}", RequireAdmin(DeleteUser)).Methods("DELETE")
+
 	// Assessment routes (Admin)
 	r.HandleFunc("/assessments", RequireAdmin(GetAssessments)).Methods("GET")
 	r.HandleFunc("/assessments", RequireAdmin(CreateAssessment)).Methods("POST")
