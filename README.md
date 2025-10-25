@@ -1,6 +1,6 @@
-# ClaripHish - Phishing Simulation Platform
+# clariphish - Phishing Simulation Platform
 
-ClaripHish is an open-source phishing simulation platform designed for security awareness training and authorized penetration testing. It provides a complete toolkit for creating, managing, and analyzing phishing campaigns in a controlled environment.
+clariphish is an open-source phishing simulation platform designed for security awareness training and authorized penetration testing. It provides a complete toolkit for creating, managing, and analyzing phishing campaigns in a controlled environment.
 
 ## ⚠️ Educational Use Only
 
@@ -172,7 +172,7 @@ Example landing page:
    - Email template
    - Landing page
    - Sending profile
-   - URL (where ClaripHish is accessible)
+   - URL (where clariphish is accessible)
    - Target groups
 4. Check "Launch immediately" to start the campaign
 5. Click "Create Campaign"
@@ -238,7 +238,7 @@ Example landing page:
 
 ### Database
 
-ClaripHish uses SQLite3 for data storage. The database file is created automatically at `./clariphish.db`
+clariphish uses SQLite3 for data storage. The database file is created automatically at `./clariphish.db`
 
 ## Security Considerations
 

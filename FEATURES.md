@@ -1,4 +1,4 @@
-# ClaripHish - Security Awareness Features
+# clariphish - Security Awareness Features
 
 ## New Features Added
 

@@ -1,5 +1,5 @@
 ================================================================================
-DOWNLOAD INSTRUCTIONS - ClaripHish Phishing Simulation Platform
+DOWNLOAD INSTRUCTIONS - clariphish Phishing Simulation Platform
 ================================================================================
 
 Option 1: Download from GitHub

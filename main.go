@@ -39,6 +39,6 @@ func main() {
 		port = "3333"
 	}
 
-	log.Printf("ClaripHish server starting on port %s", port)
+	log.Printf("clariphish server starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, r))
 }

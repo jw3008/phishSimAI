@@ -1,4 +1,4 @@
-# Quick Start Guide - ClaripHish
+# Quick Start Guide - clariphish
 
 ## 🚀 Getting Started in 3 Steps
 

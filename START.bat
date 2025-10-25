@@ -1,9 +1,9 @@
 @echo off
-REM ClaripHish Startup Script for Windows
+REM clariphish Startup Script for Windows
 REM This script will set up and run the phishing simulation platform
 
 echo ==================================
-echo ClaripHish - Setup and Start
+echo clariphish - Setup and Start
 echo ==================================
 echo.
 
@@ -66,7 +66,7 @@ if %ERRORLEVEL% EQU 0 (
 echo.
 
 REM Start the application
-echo Starting ClaripHish...
+echo Starting clariphish...
 echo.
 echo ==================================
 echo Server will start on: http://localhost:3333

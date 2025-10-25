@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# ClaripHish Startup Script
+# clariphish Startup Script
 # This script will set up and run the phishing simulation platform
 
 echo "=================================="
-echo "ClaripHish - Setup & Start"
+echo "clariphish - Setup & Start"
 echo "=================================="
 echo ""
 
@@ -63,7 +63,7 @@ fi
 echo ""
 
 # Start the application
-echo "🚀 Starting ClaripHish..."
+echo "🚀 Starting clariphish..."
 echo ""
 echo "=================================="
 echo "Server will start on: http://localhost:3333"
