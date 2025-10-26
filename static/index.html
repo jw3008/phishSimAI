@@ -44,6 +44,7 @@
                     <li class="admin-only"><a href="#" data-page="user-management" class="nav-link">User Management</a></li>
                     <li class="user-only"><a href="#" data-page="awareness" class="nav-link">Awareness Training</a></li>
                     <li class="user-only"><a href="#" data-page="my-results" class="nav-link">My Results</a></li>
+                    <li class="user-only"><a href="#" data-page="knowledge-base" class="nav-link">Knowledge Base</a></li>
                 </ul>
                 <div class="nav-user">
                     <span id="current-user"></span>
@@ -66,6 +67,7 @@
                     <div class="view-header">
                         <h2>Email Templates</h2>
                         <button id="new-template-btn" class="btn btn-primary">New Template</button>
+                        <button id="generate-ai-template-btn" class="btn btn-success" style="margin-left: 10px;">🤖 Generate with AI</button>
                     </div>
                     <div id="templates-list"></div>
                 </div>
@@ -75,6 +77,7 @@
                     <div class="view-header">
                         <h2>Landing Pages</h2>
                         <button id="new-page-btn" class="btn btn-primary">New Page</button>
+                        <button id="clone-page-btn" class="btn btn-secondary" style="margin-left: 10px;">Clone from URL</button>
                     </div>
                     <div id="pages-list"></div>
                 </div>
@@ -130,6 +133,30 @@
                         <button id="new-user-btn" class="btn btn-primary">Add User</button>
                     </div>
                     <div id="users-list"></div>
+                </div>
+
+                <!-- Knowledge Base View (User) -->
+                <div id="knowledge-base-view" class="view user-only">
+                    <div class="view-header">
+                        <h2>Security Knowledge Base</h2>
+                        <p>Ask questions about phishing, security awareness, and cybersecurity best practices</p>
+                    </div>
+                    <div class="chat-container">
+                        <div id="chat-messages" class="chat-messages"></div>
+                        <div class="chat-input-container">
+                            <input type="text" id="chat-input" class="chat-input" placeholder="Ask a question about security..." />
+                            <button id="chat-send-btn" class="btn btn-primary">Send</button>
+                        </div>
+                        <div class="info-box" style="margin-top: 20px;">
+                            <h4>💡 Example Questions</h4>
+                            <ul>
+                                <li>What are common signs of a phishing email?</li>
+                                <li>How can I protect my passwords?</li>
+                                <li>What is multi-factor authentication?</li>
+                                <li>How do I report a suspicious email?</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -24,6 +24,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/campaigns/{id}", RequireAdmin(UpdateCampaign)).Methods("PUT")
 	r.HandleFunc("/campaigns/{id}", RequireAdmin(DeleteCampaign)).Methods("DELETE")
 	r.HandleFunc("/campaigns/{id}/complete", RequireAdmin(CompleteCampaign)).Methods("POST")
+	r.HandleFunc("/campaigns/{id}/pdf", RequireAdmin(GenerateCampaignReportPDF)).Methods("GET")
 
 	// Template routes (Admin only)
 	r.HandleFunc("/templates", RequireAdmin(GetTemplates)).Methods("GET")
@@ -32,6 +33,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/templates/{id}", RequireAdmin(UpdateTemplate)).Methods("PUT")
 	r.HandleFunc("/templates/{id}", RequireAdmin(DeleteTemplate)).Methods("DELETE")
 	r.HandleFunc("/templates/generate", RequireAdmin(GenerateTemplateWithGemini)).Methods("POST")
+	r.HandleFunc("/templates/generate-random", RequireAdmin(GenerateRandomPhishingTemplate)).Methods("GET")
 
 	// Page routes (Admin only)
 	r.HandleFunc("/pages", RequireAdmin(GetPages)).Methods("GET")
@@ -39,6 +41,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/pages/{id}", RequireAdmin(GetPage)).Methods("GET")
 	r.HandleFunc("/pages/{id}", RequireAdmin(UpdatePage)).Methods("PUT")
 	r.HandleFunc("/pages/{id}", RequireAdmin(DeletePage)).Methods("DELETE")
+	r.HandleFunc("/pages/clone", RequireAdmin(CloneLandingPage)).Methods("POST")
 
 	// Group routes (Admin only)
 	r.HandleFunc("/groups", RequireAdmin(GetGroups)).Methods("GET")
@@ -70,6 +73,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/assessments/{id}/publish", RequireAdmin(PublishAssessment)).Methods("POST")
 	r.HandleFunc("/assessments/{id}/stats", RequireAdmin(GetAssessmentStats)).Methods("GET")
 	r.HandleFunc("/assessments/{id}/results", RequireAdmin(GetAssessmentResults)).Methods("GET")
+	r.HandleFunc("/assessments/{id}/pdf", RequireAdmin(GenerateAssessmentOverviewPDF)).Methods("GET")
 
 	// User Assessment routes (All authenticated users)
 	r.HandleFunc("/user/assessments", RequireAuth(GetUserAssessments)).Methods("GET")
@@ -80,6 +84,9 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/user/results", RequireAuth(GetUserResults)).Methods("GET")
 	r.HandleFunc("/user/results/{attemptId}", RequireAuth(GetUserResultDetail)).Methods("GET")
 	r.HandleFunc("/user/results/{attemptId}/pdf", RequireAuth(GenerateResultPDF)).Methods("GET")
+
+	// Knowledge Base Chatbot (All authenticated users)
+	r.HandleFunc("/knowledge-base/chat", RequireAuth(KnowledgeBaseChat)).Methods("POST")
 
 	// Tracking routes (public)
 	r.HandleFunc("/track", TrackOpen).Methods("GET")

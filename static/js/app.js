@@ -146,6 +146,7 @@ document.querySelectorAll('.nav-link').forEach(link => {
             case 'user-management': loadUsers(); break;
             case 'awareness': loadAwarenessAssessments(); break;
             case 'my-results': loadMyResults(); break;
+            case 'knowledge-base': initKnowledgeBase(); break;
         }
     });
 });
@@ -430,6 +431,7 @@ function showTemplateForm(template = null) {
 }
 
 document.getElementById('new-template-btn').addEventListener('click', () => showTemplateForm());
+document.getElementById('generate-ai-template-btn')?.addEventListener('click', () => generateRandomTemplate());
 
 // Pages
 async function loadPages() {
@@ -518,6 +520,7 @@ function showPageForm(page = null) {
 }
 
 document.getElementById('new-page-btn').addEventListener('click', () => showPageForm());
+document.getElementById('clone-page-btn')?.addEventListener('click', () => showClonePage());
 
 // Groups
 async function loadGroups() {
@@ -1439,6 +1442,231 @@ function showUserForm() {
             alert(result.error || 'Failed to create user');
         }
     });
+}
+
+// Landing Page Cloner
+function showClonePage() {
+    showModal('Clone Landing Page from URL', `
+        <form id="clone-page-form">
+            <div class="form-group">
+                <label>Website URL to Clone</label>
+                <input type="url" name="url" placeholder="https://example.com" required>
+                <small>Enter the URL of the website you want to clone (e.g., Facebook login, Google login)</small>
+            </div>
+            <div class="form-group">
+                <label>Page Name (Optional)</label>
+                <input type="text" name="name" placeholder="Leave empty to auto-generate">
+            </div>
+            <div class="info-box" style="background: #e3f2fd; padding: 15px; margin: 15px 0; border-radius: 5px;">
+                <h4 style="margin-top: 0;">ℹ️ How it works</h4>
+                <p>This feature will:</p>
+                <ul>
+                    <li>Fetch the HTML content from the URL</li>
+                    <li>Convert relative URLs to absolute</li>
+                    <li>Add tracking pixel automatically</li>
+                    <li>Save as a new landing page</li>
+                </ul>
+            </div>
+            <button type="submit" class="btn btn-primary">Clone Page</button>
+        </form>
+    `);
+
+    document.getElementById('clone-page-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const url = formData.get('url');
+        const name = formData.get('name');
+
+        // Show loading indicator
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.textContent = 'Cloning...';
+        submitBtn.disabled = true;
+
+        const result = await api.post('/pages/clone', { url, name });
+
+        if (result && result.id) {
+            alert('Landing page cloned successfully!');
+            closeModal();
+            loadPages();
+        } else {
+            alert(result?.error || 'Failed to clone page');
+            submitBtn.textContent = 'Clone Page';
+            submitBtn.disabled = false;
+        }
+    });
+}
+
+// Knowledge Base Chatbot
+let chatHistory = [];
+
+function initKnowledgeBase() {
+    const chatMessages = document.getElementById('chat-messages');
+    chatMessages.innerHTML = `
+        <div class="chat-message bot-message">
+            <strong>Security Assistant:</strong>
+            <p>Hello! I'm your security awareness assistant. Ask me anything about phishing, cybersecurity, or online safety!</p>
+        </div>
+    `;
+}
+
+function addChatMessage(role, message) {
+    const chatMessages = document.getElementById('chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${role}-message`;
+    messageDiv.innerHTML = `
+        <strong>${role === 'user' ? 'You' : 'Security Assistant'}:</strong>
+        <p>${message}</p>
+    `;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const question = input.value.trim();
+
+    if (!question) return;
+
+    // Add user message to chat
+    addChatMessage('user', question);
+    input.value = '';
+
+    // Add loading message
+    const chatMessages = document.getElementById('chat-messages');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'chat-message bot-message loading';
+    loadingDiv.innerHTML = '<p>Thinking...</p>';
+    chatMessages.appendChild(loadingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Get Gemini API key from user if not set
+    let apiKey = localStorage.getItem('gemini_api_key');
+    if (!apiKey) {
+        apiKey = prompt('Please enter your Gemini API Key (get it from https://aistudio.google.com/app/apikey):');
+        if (apiKey) {
+            localStorage.setItem('gemini_api_key', apiKey);
+        } else {
+            chatMessages.removeChild(loadingDiv);
+            addChatMessage('bot', 'API key is required to use the chatbot. Please refresh and provide your Gemini API key.');
+            return;
+        }
+    }
+
+    // Call API
+    const result = await api.call('/knowledge-base/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Gemini-API-Key': apiKey
+        },
+        body: JSON.stringify({ question })
+    });
+
+    // Remove loading message
+    chatMessages.removeChild(loadingDiv);
+
+    if (result && result.answer) {
+        addChatMessage('bot', result.answer);
+    } else {
+        addChatMessage('bot', 'Sorry, I encountered an error. Please try again or check your API key.');
+        if (result?.error?.includes('API key')) {
+            localStorage.removeItem('gemini_api_key');
+        }
+    }
+}
+
+document.getElementById('chat-send-btn')?.addEventListener('click', sendChatMessage);
+document.getElementById('chat-input')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendChatMessage();
+    }
+});
+
+// AI Template Generation
+async function generateRandomTemplate() {
+    let apiKey = localStorage.getItem('gemini_api_key');
+    if (!apiKey) {
+        apiKey = prompt('Please enter your Gemini API Key (get it from https://aistudio.google.com/app/apikey):');
+        if (apiKey) {
+            localStorage.setItem('gemini_api_key', apiKey);
+        } else {
+            alert('API key is required to generate templates');
+            return;
+        }
+    }
+
+    const result = await api.get(`/templates/generate-random?api_key=${apiKey}`);
+
+    if (result && result.success) {
+        // Parse the generated template
+        let templateData;
+        try {
+            templateData = JSON.parse(result.generated_text);
+        } catch (e) {
+            alert('Generated template, but format was unexpected. Check the console.');
+            console.log('Generated:', result.generated_text);
+            return;
+        }
+
+        // Show template form pre-filled with generated data
+        showModal('AI Generated Template - Review & Save', `
+            <form id="ai-template-form">
+                <div class="info-box" style="background: #e8f5e9; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
+                    <p><strong>Scenario:</strong> ${result.scenario}</p>
+                    <p><em>Review the generated template below and make any adjustments before saving.</em></p>
+                </div>
+                <div class="form-group">
+                    <label>Template Name</label>
+                    <input type="text" name="name" value="${result.scenario}" required>
+                </div>
+                <div class="form-group">
+                    <label>Subject Line</label>
+                    <input type="text" name="subject" value="${templateData.subject || ''}" required>
+                </div>
+                <div class="form-group">
+                    <label>HTML Content</label>
+                    <textarea name="html" rows="10" required>${templateData.html || ''}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Plain Text Content</label>
+                    <textarea name="text" rows="6">${templateData.text || ''}</textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Template</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            </form>
+        `);
+
+        document.getElementById('ai-template-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            const data = {
+                name: formData.get('name'),
+                subject: formData.get('subject'),
+                html_content: formData.get('html'),
+                text_content: formData.get('text')
+            };
+
+            await api.post('/templates', data);
+            closeModal();
+            loadTemplates();
+        });
+    } else {
+        alert(result?.error || 'Failed to generate template');
+    }
+}
+
+// PDF Download Functions
+async function downloadCampaignPDF(campaignId) {
+    window.open(`/api/campaigns/${campaignId}/pdf`, '_blank');
+}
+
+async function downloadAssessmentPDF(assessmentId) {
+    window.open(`/api/assessments/${assessmentId}/pdf`, '_blank');
+}
+
+async function downloadResultPDF(attemptId) {
+    window.open(`/api/user/results/${attemptId}/pdf`, '_blank');
 }
 
 // Initialize

@@ -541,8 +541,4 @@ func GetUserResultDetail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func GenerateResultPDF(w http.ResponseWriter, r *http.Request) {
-	// This will be implemented with a PDF library
-	// For now, return a placeholder
-	respondError(w, "PDF generation not yet implemented", http.StatusNotImplemented)
-}
+// GenerateResultPDF is implemented in pdf_reports.go
