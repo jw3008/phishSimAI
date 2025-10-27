@@ -204,9 +204,10 @@ func getCampaignResults(campaignID int) []models.Result {
 		db.DB.QueryRow(`
 			SELECT MIN(CASE WHEN message = 'Email Opened' THEN time END),
 			       MIN(CASE WHEN message = 'Clicked Link' THEN time END),
-			       MIN(CASE WHEN message = 'Submitted Data' THEN time END)
+			       MIN(CASE WHEN message = 'Submitted Data' THEN time END),
+			       MIN(CASE WHEN message = 'Reported Phishing' THEN time END)
 			FROM events WHERE campaign_target_id = ?`, r.ID).
-			Scan(&r.OpenDate, &r.ClickDate, &r.SubmitDate)
+			Scan(&r.OpenDate, &r.ClickDate, &r.SubmitDate, &r.ReportDate)
 
 		results = append(results, r)
 	}
@@ -238,11 +239,58 @@ func getCampaignStats(campaignID int) *models.Stats {
 		FROM events WHERE campaign_id = ? AND message = 'Submitted Data'`, campaignID).
 		Scan(&stats.Submitted)
 
+	db.DB.QueryRow(`
+		SELECT COUNT(DISTINCT campaign_target_id)
+		FROM events WHERE campaign_id = ? AND message = 'Reported Phishing'`, campaignID).
+		Scan(&stats.Reported)
+
 	if stats.Sent > 0 {
 		stats.OpenRate = (stats.Opened * 100) / stats.Sent
 		stats.ClickRate = (stats.Clicked * 100) / stats.Sent
 		stats.SubmitRate = (stats.Submitted * 100) / stats.Sent
+		stats.ReportRate = (stats.Reported * 100) / stats.Sent
 	}
 
 	return stats
+}
+
+// GetCampaignCredentials returns all submitted credentials for a campaign
+func GetCampaignCredentials(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	campaignID := vars["id"]
+
+	rows, err := db.DB.Query(`
+		SELECT e.time, t.first_name, t.last_name, t.email, e.details
+		FROM events e
+		JOIN campaign_targets ct ON ct.id = e.campaign_target_id
+		JOIN targets t ON t.id = ct.target_id
+		WHERE e.campaign_id = ? AND e.message = 'Submitted Data'
+		ORDER BY e.time DESC`, campaignID)
+
+	if err != nil {
+		respondError(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type SubmittedData struct {
+		Time        time.Time              `json:"time"`
+		FirstName   string                 `json:"first_name"`
+		LastName    string                 `json:"last_name"`
+		Email       string                 `json:"email"`
+		Credentials map[string]interface{} `json:"credentials"`
+	}
+
+	submissions := []SubmittedData{}
+	for rows.Next() {
+		var s SubmittedData
+		var detailsJSON string
+		rows.Scan(&s.Time, &s.FirstName, &s.LastName, &s.Email, &detailsJSON)
+
+		// Parse JSON credentials
+		json.Unmarshal([]byte(detailsJSON), &s.Credentials)
+		submissions = append(submissions, s)
+	}
+
+	respondJSON(w, submissions)
 }

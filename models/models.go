@@ -99,6 +99,7 @@ type Result struct {
 	OpenDate   time.Time `json:"open_date,omitempty"`
 	ClickDate  time.Time `json:"click_date,omitempty"`
 	SubmitDate time.Time `json:"submit_date,omitempty"`
+	ReportDate time.Time `json:"report_date,omitempty"`
 }
 
 type Stats struct {
@@ -107,10 +108,12 @@ type Stats struct {
 	Opened      int `json:"opened"`
 	Clicked     int `json:"clicked"`
 	Submitted   int `json:"submitted"`
+	Reported    int `json:"reported"`
 	Error       int `json:"error"`
 	OpenRate    int `json:"open_rate"`
 	ClickRate   int `json:"click_rate"`
 	SubmitRate  int `json:"submit_rate"`
+	ReportRate  int `json:"report_rate"`
 }
 
 type SMTP struct {

@@ -25,6 +25,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/campaigns/{id}", RequireAdmin(DeleteCampaign)).Methods("DELETE")
 	r.HandleFunc("/campaigns/{id}/complete", RequireAdmin(CompleteCampaign)).Methods("POST")
 	r.HandleFunc("/campaigns/{id}/pdf", RequireAdmin(GenerateCampaignReportPDF)).Methods("GET")
+	r.HandleFunc("/campaigns/{id}/credentials", RequireAdmin(GetCampaignCredentials)).Methods("GET")
 
 	// Template routes (Admin only)
 	r.HandleFunc("/templates", RequireAdmin(GetTemplates)).Methods("GET")
@@ -96,6 +97,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/track", TrackOpen).Methods("GET")
 	r.HandleFunc("/click", TrackClick).Methods("GET")
 	r.HandleFunc("/report", TrackSubmission).Methods("POST")
+	r.HandleFunc("/report-phishing", TrackReportPhishing).Methods("GET")
 }
 
 func ServeIndex(w http.ResponseWriter, r *http.Request) {

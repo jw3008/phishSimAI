@@ -204,3 +204,46 @@ func replaceOnce(s, old, new string) string {
 	}
 	return s + new
 }
+
+// TrackReportPhishing tracks when a user reports the email as phishing
+func TrackReportPhishing(w http.ResponseWriter, r *http.Request) {
+	rid := r.URL.Query().Get("rid")
+	if rid == "" {
+		respondError(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Get campaign target info
+	var campaignID int
+	var email string
+	err := db.DB.QueryRow(`
+		SELECT ct.campaign_id, t.email
+		FROM campaign_targets ct
+		JOIN targets t ON t.id = ct.target_id
+		WHERE ct.rid = ?`, rid).Scan(&campaignID, &email)
+
+	if err == nil {
+		// Check if already reported
+		var count int
+		db.DB.QueryRow(`
+			SELECT COUNT(*) FROM events
+			WHERE campaign_target_id = (SELECT id FROM campaign_targets WHERE rid = ?)
+			AND message = 'Reported Phishing'`, rid).Scan(&count)
+
+		if count == 0 {
+			// Record the report event
+			var ctID int
+			db.DB.QueryRow("SELECT id FROM campaign_targets WHERE rid = ?", rid).Scan(&ctID)
+
+			db.DB.Exec(`
+				INSERT INTO events (campaign_id, campaign_target_id, email, time, message, details)
+				VALUES (?, ?, ?, ?, 'Reported Phishing', '')`,
+				campaignID, ctID, email, time.Now())
+
+			// Update campaign target status
+			db.DB.Exec("UPDATE campaign_targets SET status = 'reported' WHERE rid = ?", rid)
+		}
+	}
+
+	respondJSON(w, map[string]bool{"success": true})
+}
