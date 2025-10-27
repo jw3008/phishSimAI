@@ -1595,6 +1595,21 @@ async function generateRandomTemplate() {
         }
     }
 
+    // Show loading modal
+    showModal('Generating Template...', `
+        <div style="text-align: center; padding: 40px;">
+            <div class="loading-spinner" style="margin: 20px auto; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;"></div>
+            <p style="margin-top: 20px; font-size: 16px;">AI is generating your phishing template...</p>
+            <p style="color: #666; margin-top: 10px;">This may take 10-20 seconds</p>
+        </div>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `);
+
     const result = await api.get(`/templates/generate-random?api_key=${apiKey}`);
 
     if (result && result.success) {
@@ -1603,33 +1618,57 @@ async function generateRandomTemplate() {
         try {
             templateData = JSON.parse(result.generated_text);
         } catch (e) {
-            alert('Generated template, but format was unexpected. Check the console.');
-            console.log('Generated:', result.generated_text);
-            return;
+            // If JSON parsing fails, try to extract from the response
+            console.log('Raw response:', result.generated_text);
+
+            // Try to extract JSON from markdown code blocks
+            const jsonMatch = result.generated_text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+            if (jsonMatch) {
+                try {
+                    templateData = JSON.parse(jsonMatch[1]);
+                } catch (e2) {
+                    closeModal();
+                    alert('Generated template, but could not parse the format. Please try again or check your API key.');
+                    console.error('Parse error:', e2);
+                    return;
+                }
+            } else {
+                closeModal();
+                alert('Generated template, but format was unexpected. Please try again.');
+                console.log('Generated:', result.generated_text);
+                return;
+            }
         }
+
+        // Escape HTML for safe display in form
+        const escapeHtml = (text) => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
 
         // Show template form pre-filled with generated data
         showModal('AI Generated Template - Review & Save', `
             <form id="ai-template-form">
                 <div class="info-box" style="background: #e8f5e9; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
-                    <p><strong>Scenario:</strong> ${result.scenario}</p>
+                    <p><strong>✨ Scenario:</strong> ${escapeHtml(result.scenario)}</p>
                     <p><em>Review the generated template below and make any adjustments before saving.</em></p>
                 </div>
                 <div class="form-group">
                     <label>Template Name</label>
-                    <input type="text" name="name" value="${result.scenario}" required>
+                    <input type="text" name="name" value="${escapeHtml(result.scenario)}" required>
                 </div>
                 <div class="form-group">
                     <label>Subject Line</label>
-                    <input type="text" name="subject" value="${templateData.subject || ''}" required>
+                    <input type="text" name="subject" value="${escapeHtml(templateData.subject || '')}" required>
                 </div>
                 <div class="form-group">
                     <label>HTML Content</label>
-                    <textarea name="html" rows="10" required>${templateData.html || ''}</textarea>
+                    <textarea name="html" rows="10" required>${escapeHtml(templateData.html || '')}</textarea>
                 </div>
                 <div class="form-group">
                     <label>Plain Text Content</label>
-                    <textarea name="text" rows="6">${templateData.text || ''}</textarea>
+                    <textarea name="text" rows="6">${escapeHtml(templateData.text || '')}</textarea>
                 </div>
                 <button type="submit" class="btn btn-primary">Save Template</button>
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
@@ -1647,12 +1686,22 @@ async function generateRandomTemplate() {
                 text_content: formData.get('text')
             };
 
-            await api.post('/templates', data);
-            closeModal();
-            loadTemplates();
+            const saveResult = await api.post('/templates', data);
+            if (saveResult) {
+                closeModal();
+                alert('Template saved successfully!');
+                loadTemplates();
+            }
         });
     } else {
-        alert(result?.error || 'Failed to generate template');
+        closeModal();
+        const errorMsg = result?.error || 'Failed to generate template. Please check your API key and try again.';
+        alert(errorMsg);
+
+        // If API key error, clear it so user can re-enter
+        if (errorMsg.includes('API key') || errorMsg.includes('api_key')) {
+            localStorage.removeItem('gemini_api_key');
+        }
     }
 }
 

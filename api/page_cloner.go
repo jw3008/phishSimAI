@@ -73,11 +73,11 @@ func CloneLandingPage(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "clariphish-session")
 	userID := session.Values["user_id"]
 
-	// Save to database
+	// Save to database (with default values for other fields)
 	result, err := db.DB.Exec(`
-		INSERT INTO landing_pages (name, html_content, created_at)
-		VALUES (?, ?, ?)
-	`, pageName, processedHTML, time.Now())
+		INSERT INTO pages (name, html, capture_credentials, capture_passwords, redirect_url, user_id, created_at)
+		VALUES (?, ?, 1, 1, '', ?, ?)
+	`, pageName, processedHTML, userID, time.Now())
 
 	if err != nil {
 		respondError(w, fmt.Sprintf("Failed to save page: %v", err), http.StatusInternalServerError)
