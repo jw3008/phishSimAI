@@ -29,19 +29,23 @@ func RegisterRoutes(r *mux.Router) {
 	// Template routes (Admin only)
 	r.HandleFunc("/templates", RequireAdmin(GetTemplates)).Methods("GET")
 	r.HandleFunc("/templates", RequireAdmin(CreateTemplate)).Methods("POST")
+	// Specific routes MUST come before parameterized routes
+	r.HandleFunc("/templates/generate-random", RequireAdmin(GenerateRandomPhishingTemplate)).Methods("GET")
+	r.HandleFunc("/templates/generate", RequireAdmin(GenerateTemplateWithGemini)).Methods("POST")
+	// Parameterized routes come last
 	r.HandleFunc("/templates/{id}", RequireAdmin(GetTemplate)).Methods("GET")
 	r.HandleFunc("/templates/{id}", RequireAdmin(UpdateTemplate)).Methods("PUT")
 	r.HandleFunc("/templates/{id}", RequireAdmin(DeleteTemplate)).Methods("DELETE")
-	r.HandleFunc("/templates/generate", RequireAdmin(GenerateTemplateWithGemini)).Methods("POST")
-	r.HandleFunc("/templates/generate-random", RequireAdmin(GenerateRandomPhishingTemplate)).Methods("GET")
 
 	// Page routes (Admin only)
 	r.HandleFunc("/pages", RequireAdmin(GetPages)).Methods("GET")
 	r.HandleFunc("/pages", RequireAdmin(CreatePage)).Methods("POST")
+	// Specific routes MUST come before parameterized routes
+	r.HandleFunc("/pages/clone", RequireAdmin(CloneLandingPage)).Methods("POST")
+	// Parameterized routes come last
 	r.HandleFunc("/pages/{id}", RequireAdmin(GetPage)).Methods("GET")
 	r.HandleFunc("/pages/{id}", RequireAdmin(UpdatePage)).Methods("PUT")
 	r.HandleFunc("/pages/{id}", RequireAdmin(DeletePage)).Methods("DELETE")
-	r.HandleFunc("/pages/clone", RequireAdmin(CloneLandingPage)).Methods("POST")
 
 	// Group routes (Admin only)
 	r.HandleFunc("/groups", RequireAdmin(GetGroups)).Methods("GET")
