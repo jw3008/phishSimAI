@@ -98,7 +98,7 @@ If asked about creating phishing attacks or malicious content, politely decline 
 	}
 
 	// Call Gemini API
-	geminiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=%s", apiKey)
+	geminiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s", apiKey)
 	resp, err := http.Post(geminiURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		respondError(w, fmt.Sprintf("Failed to call Gemini API: %v", err), http.StatusInternalServerError)
