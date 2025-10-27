@@ -150,9 +150,19 @@ func sendEmail(smtpConfig models.SMTP, to, firstName, lastName, rid string,
 	message += "\r\n"
 	message += "--boundary123--\r\n"
 
+	// Prepare SMTP host with port
+	smtpHost := smtpConfig.Host
+	if !strings.Contains(smtpHost, ":") {
+		// Default to port 587 if no port specified
+		smtpHost = smtpHost + ":587"
+	}
+
+	// Extract hostname without port for auth
+	hostname := strings.Split(smtpHost, ":")[0]
+
 	// Send via SMTP
-	auth := smtp.PlainAuth("", smtpConfig.Username, smtpConfig.Password, strings.Split(smtpConfig.Host, ":")[0])
-	err := smtp.SendMail(smtpConfig.Host, auth, smtpConfig.FromAddress, []string{to}, []byte(message))
+	auth := smtp.PlainAuth("", smtpConfig.Username, smtpConfig.Password, hostname)
+	err := smtp.SendMail(smtpHost, auth, smtpConfig.FromAddress, []string{to}, []byte(message))
 
 	return err
 }
