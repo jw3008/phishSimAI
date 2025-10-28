@@ -241,8 +241,8 @@ async function viewCampaign(id) {
         <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
             ${campaign.stats && campaign.stats.submitted > 0 ? `
                 <button onclick="viewCredentials(${id})" class="btn btn-primary">View Harvested Credentials</button>
-                <button onclick="downloadCredentialsPDF(${id})" class="btn btn-secondary">Download Credentials PDF</button>
             ` : ''}
+            <button onclick="downloadCredentialsPDF(${id})" class="btn btn-secondary">Download Campaign Report</button>
             ${campaign.status === 'launched' ? `
                 <button onclick="endCampaign(${id})" class="btn btn-danger">End Campaign Early</button>
             ` : ''}
@@ -414,12 +414,12 @@ function showTemplateForm(template = null) {
             <div class="form-group">
                 <label>Subject</label>
                 <input type="text" name="subject" value="${template?.subject || ''}" required>
-                <small>Variables: {{.FirstName}}, {{.LastName}}, {{.URL}}</small>
+                <small>Variables: {{.FirstName}}, {{.LastName}}, {{.URL}}, {{.ReportURL}}</small>
             </div>
             <div class="form-group">
                 <label>HTML Content</label>
                 <textarea name="html" rows="10" required>${template?.html || ''}</textarea>
-                <small>Variables: {{.FirstName}}, {{.LastName}}, {{.URL}}</small>
+                <small>Variables: {{.FirstName}}, {{.LastName}}, {{.URL}}, {{.ReportURL}} (for reporting phishing)</small>
             </div>
             <div class="form-group">
                 <label>Text Content</label>
@@ -1752,25 +1752,24 @@ async function viewCredentials(campaignId) {
                 <tr>
                     <th>Time</th>
                     <th>Name</th>
-                    <th>Email</th>
-                    <th>Submitted Data</th>
+                    <th>Target Email</th>
+                    <th>Submitted Email</th>
+                    <th>Submitted Password</th>
                 </tr>
             </thead>
             <tbody>
                 ${credentials.map(cred => {
-                    // Parse the submitted data
-                    let dataHTML = '<ul style="margin: 0; padding-left: 20px;">';
-                    for (const [key, value] of Object.entries(cred.credentials || {})) {
-                        dataHTML += `<li><strong>${key}:</strong> ${value}</li>`;
-                    }
-                    dataHTML += '</ul>';
+                    // Extract email and password from submitted data
+                    const submittedEmail = cred.credentials?.email || cred.credentials?.username || cred.credentials?.user || '-';
+                    const submittedPassword = cred.credentials?.password || cred.credentials?.pass || cred.credentials?.pwd || '-';
 
                     return `
                         <tr>
                             <td>${new Date(cred.time).toLocaleString()}</td>
                             <td>${cred.first_name} ${cred.last_name}</td>
                             <td>${cred.email}</td>
-                            <td>${dataHTML}</td>
+                            <td>${submittedEmail}</td>
+                            <td>${submittedPassword}</td>
                         </tr>
                     `;
                 }).join('')}

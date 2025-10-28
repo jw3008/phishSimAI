@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -464,27 +463,64 @@ func GenerateAssessmentOverviewPDF(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GenerateCredentialsPDF generates a PDF report of harvested credentials
+// GenerateCredentialsPDF generates a PDF report of campaign statistics and user actions
 func GenerateCredentialsPDF(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID := vars["id"]
 
 	// Get campaign details
-	var campaignName string
-	err := db.DB.QueryRow("SELECT name FROM campaigns WHERE id = ?", campaignID).Scan(&campaignName)
+	var campaign struct {
+		Name        string
+		CreatedDate time.Time
+		LaunchDate  sql.NullTime
+		Status      string
+	}
+	err := db.DB.QueryRow(`
+		SELECT name, created_date, launch_date, status
+		FROM campaigns WHERE id = ?`, campaignID).Scan(
+		&campaign.Name, &campaign.CreatedDate, &campaign.LaunchDate, &campaign.Status)
 	if err != nil {
 		respondError(w, "Campaign not found", http.StatusNotFound)
 		return
 	}
 
-	// Get submitted credentials
+	// Get campaign statistics
+	var stats struct {
+		Sent       int
+		Opened     int
+		Clicked    int
+		Submitted  int
+		Reported   int
+		OpenRate   int
+		ClickRate  int
+		SubmitRate int
+		ReportRate int
+	}
+
+	db.DB.QueryRow(`SELECT COUNT(*) FROM campaign_targets WHERE campaign_id = ?`, campaignID).Scan(&stats.Sent)
+	db.DB.QueryRow(`SELECT COUNT(DISTINCT campaign_target_id) FROM events WHERE campaign_id = ? AND message = 'Email Opened'`, campaignID).Scan(&stats.Opened)
+	db.DB.QueryRow(`SELECT COUNT(DISTINCT campaign_target_id) FROM events WHERE campaign_id = ? AND message = 'Clicked Link'`, campaignID).Scan(&stats.Clicked)
+	db.DB.QueryRow(`SELECT COUNT(DISTINCT campaign_target_id) FROM events WHERE campaign_id = ? AND message = 'Submitted Data'`, campaignID).Scan(&stats.Submitted)
+	db.DB.QueryRow(`SELECT COUNT(DISTINCT campaign_target_id) FROM events WHERE campaign_id = ? AND message = 'Reported Phishing'`, campaignID).Scan(&stats.Reported)
+
+	if stats.Sent > 0 {
+		stats.OpenRate = (stats.Opened * 100) / stats.Sent
+		stats.ClickRate = (stats.Clicked * 100) / stats.Sent
+		stats.SubmitRate = (stats.Submitted * 100) / stats.Sent
+		stats.ReportRate = (stats.Reported * 100) / stats.Sent
+	}
+
+	// Get user details
 	rows, err := db.DB.Query(`
-		SELECT e.time, t.first_name, t.last_name, t.email, e.details
-		FROM events e
-		JOIN campaign_targets ct ON ct.id = e.campaign_target_id
+		SELECT t.first_name, t.last_name, t.email, ct.status,
+		       EXISTS(SELECT 1 FROM events WHERE campaign_target_id = ct.id AND message = 'Email Opened') as opened,
+		       EXISTS(SELECT 1 FROM events WHERE campaign_target_id = ct.id AND message = 'Clicked Link') as clicked,
+		       EXISTS(SELECT 1 FROM events WHERE campaign_target_id = ct.id AND message = 'Submitted Data') as submitted,
+		       EXISTS(SELECT 1 FROM events WHERE campaign_target_id = ct.id AND message = 'Reported Phishing') as reported
+		FROM campaign_targets ct
 		JOIN targets t ON t.id = ct.target_id
-		WHERE e.campaign_id = ? AND e.message = 'Submitted Data'
-		ORDER BY e.time DESC`, campaignID)
+		WHERE ct.campaign_id = ?
+		ORDER BY t.last_name, t.first_name`, campaignID)
 
 	if err != nil {
 		respondError(w, "Database error", http.StatusInternalServerError)
@@ -498,60 +534,81 @@ func GenerateCredentialsPDF(w http.ResponseWriter, r *http.Request) {
 
 	// Header
 	pdf.SetFont("Arial", "B", 20)
-	pdf.Cell(190, 10, "Harvested Credentials Report")
+	pdf.Cell(190, 10, "Campaign Report")
 	pdf.Ln(15)
 
 	// Campaign Info
 	pdf.SetFont("Arial", "B", 14)
-	pdf.Cell(190, 8, "Campaign: "+campaignName)
+	pdf.Cell(190, 8, "Campaign: "+campaign.Name)
 	pdf.Ln(10)
 
 	pdf.SetFont("Arial", "", 12)
-	pdf.Cell(190, 7, "Generated: "+time.Now().Format("2006-01-02 15:04:05"))
-	pdf.Ln(15)
+	pdf.Cell(90, 7, "Created:")
+	pdf.Cell(100, 7, campaign.CreatedDate.Format("2006-01-02 15:04:05"))
+	pdf.Ln(7)
 
-	// Credentials
-	pdf.SetFont("Arial", "B", 12)
-	pdf.Cell(190, 8, "Submitted Credentials")
-	pdf.Ln(10)
-
-	credCount := 0
-	for rows.Next() {
-		var timestamp time.Time
-		var firstName, lastName, email, detailsJSON string
-		rows.Scan(&timestamp, &firstName, &lastName, &email, &detailsJSON)
-
-		credCount++
-
-		// Entry header
-		pdf.SetFont("Arial", "B", 11)
-		pdf.Cell(190, 7, fmt.Sprintf("%d. %s %s (%s)", credCount, firstName, lastName, email))
+	if campaign.LaunchDate.Valid {
+		pdf.Cell(90, 7, "Launched:")
+		pdf.Cell(100, 7, campaign.LaunchDate.Time.Format("2006-01-02 15:04:05"))
 		pdf.Ln(7)
-
-		pdf.SetFont("Arial", "", 10)
-		pdf.Cell(190, 6, "Submitted: "+timestamp.Format("2006-01-02 15:04:05"))
-		pdf.Ln(6)
-
-		// Parse and display credentials
-		var credentials map[string]interface{}
-		if err := json.Unmarshal([]byte(detailsJSON), &credentials); err == nil {
-			pdf.SetFont("Arial", "I", 10)
-			for key, value := range credentials {
-				credLine := fmt.Sprintf("  %s: %v", key, value)
-				// Truncate long values
-				if len(credLine) > 80 {
-					credLine = credLine[:77] + "..."
-				}
-				pdf.Cell(190, 5, credLine)
-				pdf.Ln(5)
-			}
-		}
-		pdf.Ln(5)
 	}
 
-	if credCount == 0 {
-		pdf.SetFont("Arial", "I", 12)
-		pdf.Cell(190, 10, "No credentials have been submitted yet.")
+	pdf.Cell(90, 7, "Status:")
+	pdf.Cell(100, 7, campaign.Status)
+	pdf.Ln(12)
+
+	// Statistics Section
+	pdf.SetFont("Arial", "B", 14)
+	pdf.Cell(190, 8, "Campaign Statistics")
+	pdf.Ln(10)
+
+	pdf.SetFont("Arial", "", 12)
+	pdf.Cell(90, 7, "Total Sent:")
+	pdf.Cell(100, 7, fmt.Sprintf("%d", stats.Sent))
+	pdf.Ln(7)
+
+	pdf.Cell(90, 7, "Opened:")
+	pdf.Cell(100, 7, fmt.Sprintf("%d (%d%%)", stats.Opened, stats.OpenRate))
+	pdf.Ln(7)
+
+	pdf.Cell(90, 7, "Clicked:")
+	pdf.Cell(100, 7, fmt.Sprintf("%d (%d%%)", stats.Clicked, stats.ClickRate))
+	pdf.Ln(7)
+
+	pdf.Cell(90, 7, "Submitted Credentials:")
+	pdf.Cell(100, 7, fmt.Sprintf("%d (%d%%)", stats.Submitted, stats.SubmitRate))
+	pdf.Ln(7)
+
+	pdf.Cell(90, 7, "Reported as Phishing:")
+	pdf.Cell(100, 7, fmt.Sprintf("%d (%d%%)", stats.Reported, stats.ReportRate))
+	pdf.Ln(15)
+
+	// Users Section
+	pdf.SetFont("Arial", "B", 14)
+	pdf.Cell(190, 8, "Target Users")
+	pdf.Ln(10)
+
+	// Table header
+	pdf.SetFont("Arial", "B", 9)
+	pdf.Cell(50, 7, "Name")
+	pdf.Cell(30, 7, "Opened")
+	pdf.Cell(30, 7, "Clicked")
+	pdf.Cell(30, 7, "Submitted")
+	pdf.Cell(30, 7, "Reported")
+	pdf.Ln(7)
+
+	pdf.SetFont("Arial", "", 9)
+	for rows.Next() {
+		var firstName, lastName, email, status string
+		var opened, clicked, submitted, reported bool
+		rows.Scan(&firstName, &lastName, &email, &status, &opened, &clicked, &submitted, &reported)
+
+		pdf.Cell(50, 6, firstName+" "+lastName)
+		pdf.Cell(30, 6, boolToCheckmark(opened))
+		pdf.Cell(30, 6, boolToCheckmark(clicked))
+		pdf.Cell(30, 6, boolToCheckmark(submitted))
+		pdf.Cell(30, 6, boolToCheckmark(reported))
+		pdf.Ln(6)
 	}
 
 	// Footer
@@ -561,13 +618,21 @@ func GenerateCredentialsPDF(w http.ResponseWriter, r *http.Request) {
 
 	// Output PDF
 	w.Header().Set("Content-Type", "application/pdf")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="credentials_%s.pdf"`, campaignID))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="campaign_report_%s.pdf"`, campaignID))
 
 	err = pdf.Output(w)
 	if err != nil {
 		respondError(w, "Failed to generate PDF", http.StatusInternalServerError)
 		return
 	}
+}
+
+// boolToCheckmark converts boolean to checkmark symbol
+func boolToCheckmark(b bool) string {
+	if b {
+		return "Yes"
+	}
+	return "No"
 }
 
 // percentage calculates percentage safely

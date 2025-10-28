@@ -174,6 +174,7 @@ func replaceVariables(text, firstName, lastName, rid, baseURL string) string {
 	text = strings.ReplaceAll(text, "{{.Position}}", "")
 	text = strings.ReplaceAll(text, "{{.RId}}", rid)
 	text = strings.ReplaceAll(text, "{{.URL}}", fmt.Sprintf("%s/api/click?rid=%s", baseURL, rid))
+	text = strings.ReplaceAll(text, "{{.ReportURL}}", fmt.Sprintf("%s/api/report-phishing?rid=%s", baseURL, rid))
 
 	return text
 }
