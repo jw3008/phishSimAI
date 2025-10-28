@@ -347,3 +347,39 @@ func EndCampaignEarly(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, map[string]bool{"success": true})
 }
+
+// LaunchCampaignNow launches a draft campaign immediately
+func LaunchCampaignNow(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	campaignID := vars["id"]
+
+	// Check if campaign exists and is in draft status
+	var status string
+	err := db.DB.QueryRow("SELECT status FROM campaigns WHERE id = ?", campaignID).Scan(&status)
+	if err != nil {
+		respondError(w, "Campaign not found", http.StatusNotFound)
+		return
+	}
+
+	if status != "draft" {
+		respondError(w, "Campaign is not in draft status", http.StatusBadRequest)
+		return
+	}
+
+	// Update campaign status to launched
+	_, err = db.DB.Exec(`
+		UPDATE campaigns
+		SET status = 'launched', launch_date = ?
+		WHERE id = ?`, time.Now(), campaignID)
+
+	if err != nil {
+		respondError(w, "Failed to launch campaign", http.StatusInternalServerError)
+		return
+	}
+
+	// Launch the campaign asynchronously
+	id, _ := strconv.Atoi(campaignID)
+	go mailer.LaunchCampaign(id)
+
+	respondJSON(w, map[string]bool{"success": true})
+}

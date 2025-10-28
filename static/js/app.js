@@ -237,6 +237,9 @@ async function viewCampaign(id) {
 
     const actionButtons = `
         <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+            ${campaign.status === 'draft' ? `
+                <button onclick="launchCampaignNow(${id})" class="btn btn-success">Launch Campaign Now</button>
+            ` : ''}
             ${campaign.stats && campaign.stats.submitted > 0 ? `
                 <button onclick="viewCredentials(${id})" class="btn btn-primary">View Harvested Credentials</button>
             ` : ''}
@@ -1802,6 +1805,21 @@ async function endCampaign(campaignId) {
         closeModal();
     } else {
         alert('Failed to end campaign: ' + (result?.error || 'Unknown error'));
+    }
+}
+
+async function launchCampaignNow(campaignId) {
+    if (!confirm('Are you sure you want to launch this campaign now? Emails will be sent immediately.')) {
+        return;
+    }
+
+    const result = await api.post(`/campaigns/${campaignId}/launch`, {});
+    if (result && result.success) {
+        alert('Campaign launched successfully! Emails are being sent.');
+        loadCampaigns();
+        closeModal();
+    } else {
+        alert('Failed to launch campaign: ' + (result?.error || 'Unknown error'));
     }
 }
 

@@ -28,6 +28,7 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/campaigns/{id}/credentials", RequireAdmin(GetCampaignCredentials)).Methods("GET")
 	r.HandleFunc("/campaigns/{id}/credentials-pdf", RequireAdmin(GenerateCredentialsPDF)).Methods("GET")
 	r.HandleFunc("/campaigns/{id}/end", RequireAdmin(EndCampaignEarly)).Methods("POST")
+	r.HandleFunc("/campaigns/{id}/launch", RequireAdmin(LaunchCampaignNow)).Methods("POST")
 	r.HandleFunc("/campaigns/{id}/debug-events", RequireAdmin(GetCampaignEvents)).Methods("GET")
 
 	// Template routes (Admin only)
