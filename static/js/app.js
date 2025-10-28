@@ -212,7 +212,6 @@ async function viewCampaign(id) {
                     <th>Email</th>
                     <th>Status</th>
                     <th>Sent</th>
-                    <th>Opened</th>
                     <th>Clicked</th>
                     <th>Submitted</th>
                 </tr>
@@ -224,9 +223,8 @@ async function viewCampaign(id) {
                         <td>${r.email}</td>
                         <td><span class="badge badge-${r.status}">${r.status}</span></td>
                         <td>${r.send_date ? new Date(r.send_date).toLocaleString() : '-'}</td>
-                        <td>${r.open_date ? new Date(r.open_date).toLocaleString() : '-'}</td>
-                        <td>${r.click_date ? new Date(r.click_date).toLocaleString() : '-'}</td>
-                        <td>${r.submit_date ? new Date(r.submit_date).toLocaleString() : '-'}</td>
+                        <td>${r.click_date ? '✓' : '✗'}</td>
+                        <td>${r.submit_date ? '✓' : '✗'}</td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -243,10 +241,6 @@ async function viewCampaign(id) {
             <div class="stat-item">
                 <div class="stat-value">${campaign.stats.sent}</div>
                 <div class="stat-label">Sent (${campaign.stats.total})</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">${campaign.stats.open_rate}%</div>
-                <div class="stat-label">Open Rate</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value">${campaign.stats.click_rate}%</div>
