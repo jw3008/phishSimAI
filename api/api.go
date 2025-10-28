@@ -30,6 +30,8 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/campaigns/{id}/end", RequireAdmin(EndCampaignEarly)).Methods("POST")
 	r.HandleFunc("/campaigns/{id}/launch", RequireAdmin(LaunchCampaignNow)).Methods("POST")
 	r.HandleFunc("/campaigns/{id}/debug-events", RequireAdmin(GetCampaignEvents)).Methods("GET")
+	r.HandleFunc("/campaigns/{id}/verify-timestamps", RequireAdmin(VerifyCampaignTimestamps)).Methods("GET")
+	r.HandleFunc("/campaigns/{id}/cleanup-timestamps", RequireAdmin(CleanupBadTimestamps)).Methods("POST")
 
 	// Template routes (Admin only)
 	r.HandleFunc("/templates", RequireAdmin(GetTemplates)).Methods("GET")
