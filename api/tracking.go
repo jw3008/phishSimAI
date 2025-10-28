@@ -119,15 +119,22 @@ func TrackClick(w http.ResponseWriter, r *http.Request) {
 }
 
 func TrackSubmission(w http.ResponseWriter, r *http.Request) {
+	// Parse multipart form data (FormData from JavaScript)
+	err := r.ParseMultipartForm(10 << 20) // 10 MB max
+	if err != nil {
+		// Fallback to regular form parsing for URL-encoded forms
+		r.ParseForm()
+	}
+
 	rid := r.FormValue("rid")
 	log.Printf("TrackSubmission called with RID: %s", rid)
 	if rid == "" {
+		log.Printf("TrackSubmission: No RID provided in form data")
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
 	// Parse form data
-	r.ParseForm()
 	formData := make(map[string]interface{})
 	for key, values := range r.Form {
 		if key != "rid" && len(values) > 0 {
@@ -139,7 +146,7 @@ func TrackSubmission(w http.ResponseWriter, r *http.Request) {
 	// Get campaign target info
 	var campaignID int
 	var email string
-	err := db.DB.QueryRow(`
+	err = db.DB.QueryRow(`
 		SELECT ct.campaign_id, t.email
 		FROM campaign_targets ct
 		JOIN targets t ON t.id = ct.target_id
@@ -206,6 +213,10 @@ document.addEventListener('DOMContentLoaded', function() {
 				method: 'POST',
 				body: formData
 			}).then(function(response) {
+				if (!response.ok) {
+					console.error('Submission failed:', response.status, response.statusText);
+					throw new Error('Submission failed');
+				}
 				return response.json();
 			}).then(function(data) {
 				if (data.redirect) {
@@ -213,6 +224,9 @@ document.addEventListener('DOMContentLoaded', function() {
 				} else {
 					alert('Thank you for your submission!');
 				}
+			}).catch(function(error) {
+				console.error('Error submitting form:', error);
+				alert('Thank you for your submission!');
 			});
 		});
 	}
