@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -60,6 +61,7 @@ func TrackOpen(w http.ResponseWriter, r *http.Request) {
 
 func TrackClick(w http.ResponseWriter, r *http.Request) {
 	rid := r.URL.Query().Get("rid")
+	log.Printf("TrackClick called with RID: %s", rid)
 	if rid == "" {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
@@ -76,14 +78,24 @@ func TrackClick(w http.ResponseWriter, r *http.Request) {
 		WHERE ct.rid = ?`, rid).Scan(&campaignID, &targetID, &email, &pageID)
 
 	if err == nil {
+		log.Printf("TrackClick: Found campaign_id=%d, email=%s", campaignID, email)
+
 		// Record the click event
 		var ctID int
 		db.DB.QueryRow("SELECT id FROM campaign_targets WHERE rid = ?", rid).Scan(&ctID)
+		log.Printf("TrackClick: campaign_target_id=%d", ctID)
 
-		db.DB.Exec(`
+		result, err := db.DB.Exec(`
 			INSERT INTO events (campaign_id, campaign_target_id, email, time, message, details)
 			VALUES (?, ?, ?, ?, 'Clicked Link', '')`,
 			campaignID, ctID, email, time.Now())
+
+		if err != nil {
+			log.Printf("TrackClick: Error inserting event: %v", err)
+		} else {
+			eventID, _ := result.LastInsertId()
+			log.Printf("TrackClick: Event created with ID=%d", eventID)
+		}
 
 		// Update campaign target status
 		db.DB.Exec("UPDATE campaign_targets SET status = 'clicked' WHERE rid = ?", rid)
@@ -99,6 +111,8 @@ func TrackClick(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(injectRID(pageHTML, rid)))
 		return
+	} else {
+		log.Printf("TrackClick: Error finding campaign target: %v", err)
 	}
 
 	http.Redirect(w, r, "/", http.StatusFound)
@@ -106,6 +120,7 @@ func TrackClick(w http.ResponseWriter, r *http.Request) {
 
 func TrackSubmission(w http.ResponseWriter, r *http.Request) {
 	rid := r.FormValue("rid")
+	log.Printf("TrackSubmission called with RID: %s", rid)
 	if rid == "" {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
@@ -119,6 +134,7 @@ func TrackSubmission(w http.ResponseWriter, r *http.Request) {
 			formData[key] = values[0]
 		}
 	}
+	log.Printf("TrackSubmission: Form data: %+v", formData)
 
 	// Get campaign target info
 	var campaignID int
@@ -130,15 +146,25 @@ func TrackSubmission(w http.ResponseWriter, r *http.Request) {
 		WHERE ct.rid = ?`, rid).Scan(&campaignID, &email)
 
 	if err == nil {
+		log.Printf("TrackSubmission: Found campaign_id=%d, email=%s", campaignID, email)
+
 		// Record the submission event
 		var ctID int
 		db.DB.QueryRow("SELECT id FROM campaign_targets WHERE rid = ?", rid).Scan(&ctID)
+		log.Printf("TrackSubmission: campaign_target_id=%d", ctID)
 
 		detailsJSON, _ := json.Marshal(formData)
-		db.DB.Exec(`
+		result, err := db.DB.Exec(`
 			INSERT INTO events (campaign_id, campaign_target_id, email, time, message, details)
 			VALUES (?, ?, ?, ?, 'Submitted Data', ?)`,
 			campaignID, ctID, email, time.Now(), string(detailsJSON))
+
+		if err != nil {
+			log.Printf("TrackSubmission: Error inserting event: %v", err)
+		} else {
+			eventID, _ := result.LastInsertId()
+			log.Printf("TrackSubmission: Event created with ID=%d, details=%s", eventID, string(detailsJSON))
+		}
 
 		// Update campaign target status
 		db.DB.Exec("UPDATE campaign_targets SET status = 'submitted' WHERE rid = ?", rid)
@@ -154,6 +180,8 @@ func TrackSubmission(w http.ResponseWriter, r *http.Request) {
 			respondJSON(w, map[string]string{"redirect": redirectURL})
 			return
 		}
+	} else {
+		log.Printf("TrackSubmission: Error finding campaign target: %v", err)
 	}
 
 	respondJSON(w, map[string]bool{"success": true})
@@ -208,6 +236,7 @@ func replaceOnce(s, old, new string) string {
 // TrackReportPhishing tracks when a user reports the email as phishing
 func TrackReportPhishing(w http.ResponseWriter, r *http.Request) {
 	rid := r.URL.Query().Get("rid")
+	log.Printf("TrackReportPhishing called with RID: %s", rid)
 	if rid == "" {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
@@ -223,6 +252,8 @@ func TrackReportPhishing(w http.ResponseWriter, r *http.Request) {
 		WHERE ct.rid = ?`, rid).Scan(&campaignID, &email)
 
 	if err == nil {
+		log.Printf("TrackReportPhishing: Found campaign_id=%d, email=%s", campaignID, email)
+
 		// Check if already reported
 		var count int
 		db.DB.QueryRow(`
@@ -230,19 +261,34 @@ func TrackReportPhishing(w http.ResponseWriter, r *http.Request) {
 			WHERE campaign_target_id = (SELECT id FROM campaign_targets WHERE rid = ?)
 			AND message = 'Reported Phishing'`, rid).Scan(&count)
 
+		log.Printf("TrackReportPhishing: Existing report count=%d", count)
+
 		if count == 0 {
 			// Record the report event
 			var ctID int
 			db.DB.QueryRow("SELECT id FROM campaign_targets WHERE rid = ?", rid).Scan(&ctID)
+			log.Printf("TrackReportPhishing: campaign_target_id=%d", ctID)
 
-			db.DB.Exec(`
+			result, err := db.DB.Exec(`
 				INSERT INTO events (campaign_id, campaign_target_id, email, time, message, details)
 				VALUES (?, ?, ?, ?, 'Reported Phishing', '')`,
 				campaignID, ctID, email, time.Now())
 
+			if err != nil {
+				log.Printf("TrackReportPhishing: Error inserting event: %v", err)
+			} else {
+				eventID, _ := result.LastInsertId()
+				log.Printf("TrackReportPhishing: Event created with ID=%d", eventID)
+			}
+
 			// Update campaign target status
 			db.DB.Exec("UPDATE campaign_targets SET status = 'reported' WHERE rid = ?", rid)
+			log.Printf("TrackReportPhishing: Updated status to 'reported'")
+		} else {
+			log.Printf("TrackReportPhishing: Already reported, skipping")
 		}
+	} else {
+		log.Printf("TrackReportPhishing: Error finding campaign target: %v", err)
 	}
 
 	// Return a user-friendly HTML page
