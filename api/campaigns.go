@@ -294,3 +294,35 @@ func GetCampaignCredentials(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, submissions)
 }
+
+// EndCampaignEarly ends a running campaign
+func EndCampaignEarly(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	campaignID := vars["id"]
+
+	// Check if campaign exists and is launched
+	var status string
+	err := db.DB.QueryRow("SELECT status FROM campaigns WHERE id = ?", campaignID).Scan(&status)
+	if err != nil {
+		respondError(w, "Campaign not found", http.StatusNotFound)
+		return
+	}
+
+	if status != "launched" {
+		respondError(w, "Campaign is not currently running", http.StatusBadRequest)
+		return
+	}
+
+	// Update campaign status to completed
+	_, err = db.DB.Exec(`
+		UPDATE campaigns
+		SET status = 'completed', completed_date = ?
+		WHERE id = ?`, time.Now(), campaignID)
+
+	if err != nil {
+		respondError(w, "Failed to end campaign", http.StatusInternalServerError)
+		return
+	}
+
+	respondJSON(w, map[string]bool{"success": true})
+}

@@ -217,6 +217,7 @@ async function viewCampaign(id) {
                     <th>Opened</th>
                     <th>Clicked</th>
                     <th>Submitted</th>
+                    <th>Reported</th>
                 </tr>
             </thead>
             <tbody>
@@ -229,11 +230,24 @@ async function viewCampaign(id) {
                         <td>${r.open_date ? new Date(r.open_date).toLocaleString() : '-'}</td>
                         <td>${r.click_date ? new Date(r.click_date).toLocaleString() : '-'}</td>
                         <td>${r.submit_date ? new Date(r.submit_date).toLocaleString() : '-'}</td>
+                        <td>${r.report_date ? '<span style="color: green;">✓ ' + new Date(r.report_date).toLocaleString() + '</span>' : '-'}</td>
                     </tr>
                 `).join('')}
             </tbody>
         </table>
     ` : '<p>No results yet</p>';
+
+    const actionButtons = `
+        <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+            ${campaign.stats && campaign.stats.submitted > 0 ? `
+                <button onclick="viewCredentials(${id})" class="btn btn-primary">View Harvested Credentials</button>
+                <button onclick="downloadCredentialsPDF(${id})" class="btn btn-secondary">Download Credentials PDF</button>
+            ` : ''}
+            ${campaign.status === 'launched' ? `
+                <button onclick="endCampaign(${id})" class="btn btn-danger">End Campaign Early</button>
+            ` : ''}
+        </div>
+    `;
 
     showModal(`Campaign: ${campaign.name}`, `
         <div class="card-meta">
@@ -258,8 +272,13 @@ async function viewCampaign(id) {
                 <div class="stat-value">${campaign.stats.submit_rate}%</div>
                 <div class="stat-label">Submit Rate</div>
             </div>
+            <div class="stat-item">
+                <div class="stat-value" style="color: ${campaign.stats.report_rate > 50 ? 'green' : 'inherit'}">${campaign.stats.report_rate || 0}%</div>
+                <div class="stat-label">Report Rate</div>
+            </div>
         </div>
         ` : ''}
+        ${actionButtons}
         <br>
         ${resultsTable}
     `);
@@ -1716,6 +1735,69 @@ async function downloadAssessmentPDF(assessmentId) {
 
 async function downloadResultPDF(attemptId) {
     window.open(`/api/user/results/${attemptId}/pdf`, '_blank');
+}
+
+// Credentials and Campaign Management Functions
+async function viewCredentials(campaignId) {
+    const credentials = await api.get(`/campaigns/${campaignId}/credentials`);
+
+    if (!credentials || credentials.length === 0) {
+        showModal('Harvested Credentials', '<p>No credentials have been submitted yet.</p>');
+        return;
+    }
+
+    const credentialsTable = `
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Submitted Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${credentials.map(cred => {
+                    // Parse the submitted data
+                    let dataHTML = '<ul style="margin: 0; padding-left: 20px;">';
+                    for (const [key, value] of Object.entries(cred.credentials || {})) {
+                        dataHTML += `<li><strong>${key}:</strong> ${value}</li>`;
+                    }
+                    dataHTML += '</ul>';
+
+                    return `
+                        <tr>
+                            <td>${new Date(cred.time).toLocaleString()}</td>
+                            <td>${cred.first_name} ${cred.last_name}</td>
+                            <td>${cred.email}</td>
+                            <td>${dataHTML}</td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+
+    showModal('Harvested Credentials', credentialsTable, 'large');
+}
+
+async function downloadCredentialsPDF(campaignId) {
+    window.open(`/api/campaigns/${campaignId}/credentials-pdf`, '_blank');
+}
+
+async function endCampaign(campaignId) {
+    if (!confirm('Are you sure you want to end this campaign early? This action cannot be undone.')) {
+        return;
+    }
+
+    const result = await api.post(`/campaigns/${campaignId}/end`, {});
+    if (result && result.success) {
+        alert('Campaign ended successfully');
+        loadCampaigns();
+        closeModal();
+    } else {
+        alert('Failed to end campaign: ' + (result?.error || 'Unknown error'));
+    }
 }
 
 // Initialize
