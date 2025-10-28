@@ -567,10 +567,6 @@ func GenerateCredentialsPDF(w http.ResponseWriter, r *http.Request) {
 	pdf.Cell(100, 7, fmt.Sprintf("%d", stats.Sent))
 	pdf.Ln(7)
 
-	pdf.Cell(90, 7, "Opened:")
-	pdf.Cell(100, 7, fmt.Sprintf("%d (%d%%)", stats.Opened, stats.OpenRate))
-	pdf.Ln(7)
-
 	pdf.Cell(90, 7, "Clicked:")
 	pdf.Cell(100, 7, fmt.Sprintf("%d (%d%%)", stats.Clicked, stats.ClickRate))
 	pdf.Ln(7)

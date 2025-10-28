@@ -226,9 +226,9 @@ async function viewCampaign(id) {
                         <td>${r.email}</td>
                         <td><span class="badge badge-${r.status}">${r.status}</span></td>
                         <td>${r.send_date ? new Date(r.send_date).toLocaleString() : '-'}</td>
-                        <td>${r.click_date ? new Date(r.click_date).toLocaleString() : '-'}</td>
-                        <td>${r.submit_date ? new Date(r.submit_date).toLocaleString() : '-'}</td>
-                        <td>${r.report_date ? '<span style="color: green;">✓ ' + new Date(r.report_date).toLocaleString() + '</span>' : '-'}</td>
+                        <td>${r.click_date ? '<span style="color: green; font-size: 18px;">✓</span>' : '<span style="color: red; font-size: 18px;">✗</span>'}</td>
+                        <td>${r.submit_date ? '<span style="color: green; font-size: 18px;">✓</span>' : '<span style="color: red; font-size: 18px;">✗</span>'}</td>
+                        <td>${r.report_date ? '<span style="color: green; font-size: 18px;">✓</span>' : '<span style="color: red; font-size: 18px;">✗</span>'}</td>
                     </tr>
                 `).join('')}
             </tbody>
