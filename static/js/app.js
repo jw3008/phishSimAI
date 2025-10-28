@@ -214,7 +214,6 @@ async function viewCampaign(id) {
                     <th>Email</th>
                     <th>Status</th>
                     <th>Sent</th>
-                    <th>Opened</th>
                     <th>Clicked</th>
                     <th>Submitted</th>
                     <th>Reported</th>
@@ -227,7 +226,6 @@ async function viewCampaign(id) {
                         <td>${r.email}</td>
                         <td><span class="badge badge-${r.status}">${r.status}</span></td>
                         <td>${r.send_date ? new Date(r.send_date).toLocaleString() : '-'}</td>
-                        <td>${r.open_date ? new Date(r.open_date).toLocaleString() : '-'}</td>
                         <td>${r.click_date ? new Date(r.click_date).toLocaleString() : '-'}</td>
                         <td>${r.submit_date ? new Date(r.submit_date).toLocaleString() : '-'}</td>
                         <td>${r.report_date ? '<span style="color: green;">✓ ' + new Date(r.report_date).toLocaleString() + '</span>' : '-'}</td>

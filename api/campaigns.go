@@ -199,7 +199,8 @@ func getCampaignResults(campaignID int) []models.Result {
 		rows.Scan(&campaignTargetID, &r.FirstName, &r.LastName, &r.Email, &r.Position, &r.Status, &sendDate)
 		r.ID = campaignTargetID
 		if sendDate.Valid {
-			r.SendDate = sendDate.Time
+			t := sendDate.Time
+			r.SendDate = &t
 		}
 
 		// Get event times using sql.NullTime
@@ -213,16 +214,20 @@ func getCampaignResults(campaignID int) []models.Result {
 			Scan(&openDate, &clickDate, &submitDate, &reportDate)
 
 		if openDate.Valid {
-			r.OpenDate = openDate.Time
+			t := openDate.Time
+			r.OpenDate = &t
 		}
 		if clickDate.Valid {
-			r.ClickDate = clickDate.Time
+			t := clickDate.Time
+			r.ClickDate = &t
 		}
 		if submitDate.Valid {
-			r.SubmitDate = submitDate.Time
+			t := submitDate.Time
+			r.SubmitDate = &t
 		}
 		if reportDate.Valid {
-			r.ReportDate = reportDate.Time
+			t := reportDate.Time
+			r.ReportDate = &t
 		}
 
 		results = append(results, r)

@@ -89,17 +89,17 @@ type Event struct {
 }
 
 type Result struct {
-	ID         int       `json:"id"`
-	FirstName  string    `json:"first_name"`
-	LastName   string    `json:"last_name"`
-	Email      string    `json:"email"`
-	Position   string    `json:"position"`
-	Status     string    `json:"status"`
-	SendDate   time.Time `json:"send_date,omitempty"`
-	OpenDate   time.Time `json:"open_date,omitempty"`
-	ClickDate  time.Time `json:"click_date,omitempty"`
-	SubmitDate time.Time `json:"submit_date,omitempty"`
-	ReportDate time.Time `json:"report_date,omitempty"`
+	ID         int        `json:"id"`
+	FirstName  string     `json:"first_name"`
+	LastName   string     `json:"last_name"`
+	Email      string     `json:"email"`
+	Position   string     `json:"position"`
+	Status     string     `json:"status"`
+	SendDate   *time.Time `json:"send_date,omitempty"`
+	OpenDate   *time.Time `json:"open_date,omitempty"`
+	ClickDate  *time.Time `json:"click_date,omitempty"`
+	SubmitDate *time.Time `json:"submit_date,omitempty"`
+	ReportDate *time.Time `json:"report_date,omitempty"`
 }
 
 type Stats struct {
