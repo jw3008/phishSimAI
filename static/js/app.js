@@ -261,8 +261,8 @@ async function viewCampaign(id) {
                 <div class="stat-label">Sent (${campaign.stats.total})</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">${campaign.stats.open_rate}%</div>
-                <div class="stat-label">Open Rate</div>
+                <div class="stat-value" style="color: ${campaign.stats.report_rate > 50 ? 'green' : 'inherit'}">${campaign.stats.report_rate || 0}%</div>
+                <div class="stat-label">Report Rate</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value">${campaign.stats.click_rate}%</div>
@@ -271,10 +271,6 @@ async function viewCampaign(id) {
             <div class="stat-item">
                 <div class="stat-value">${campaign.stats.submit_rate}%</div>
                 <div class="stat-label">Submit Rate</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" style="color: ${campaign.stats.report_rate > 50 ? 'green' : 'inherit'}">${campaign.stats.report_rate || 0}%</div>
-                <div class="stat-label">Report Rate</div>
             </div>
         </div>
         ` : ''}
@@ -587,11 +583,12 @@ function showGroupForm(group = null) {
             <h3>Targets</h3>
             <div id="targets-container">
                 ${targets.map((t, i) => `
-                    <div class="card" style="padding: 10px; margin-bottom: 10px;">
-                        <input type="text" placeholder="First Name" value="${t.first_name}" data-field="first_name" data-index="${i}" style="margin-bottom: 5px;">
-                        <input type="text" placeholder="Last Name" value="${t.last_name}" data-field="last_name" data-index="${i}" style="margin-bottom: 5px;">
-                        <input type="email" placeholder="Email" value="${t.email}" data-field="email" data-index="${i}" required style="margin-bottom: 5px;">
-                        <input type="text" placeholder="Position" value="${t.position}" data-field="position" data-index="${i}">
+                    <div class="card" style="padding: 10px; margin-bottom: 10px; position: relative;" data-target-index="${i}">
+                        <button type="button" class="btn btn-small btn-danger" onclick="removeTarget(${i})" style="position: absolute; right: 10px; top: 10px;">Remove</button>
+                        <input type="text" placeholder="First Name" value="${t.first_name}" data-field="first_name" data-index="${i}" style="margin-bottom: 5px; width: calc(100% - 80px);">
+                        <input type="text" placeholder="Last Name" value="${t.last_name}" data-field="last_name" data-index="${i}" style="margin-bottom: 5px; width: calc(100% - 80px);">
+                        <input type="email" placeholder="Email" value="${t.email}" data-field="email" data-index="${i}" required style="margin-bottom: 5px; width: calc(100% - 80px);">
+                        <input type="text" placeholder="Position" value="${t.position}" data-field="position" data-index="${i}" style="width: calc(100% - 80px);">
                     </div>
                 `).join('')}
             </div>
@@ -635,13 +632,24 @@ window.addTarget = function() {
     div.className = 'card';
     div.style.padding = '10px';
     div.style.marginBottom = '10px';
+    div.style.position = 'relative';
+    div.setAttribute('data-target-index', index);
     div.innerHTML = `
-        <input type="text" placeholder="First Name" data-field="first_name" data-index="${index}" style="margin-bottom: 5px;">
-        <input type="text" placeholder="Last Name" data-field="last_name" data-index="${index}" style="margin-bottom: 5px;">
-        <input type="email" placeholder="Email" data-field="email" data-index="${index}" required style="margin-bottom: 5px;">
-        <input type="text" placeholder="Position" data-field="position" data-index="${index}">
+        <button type="button" class="btn btn-small btn-danger" onclick="removeTarget(${index})" style="position: absolute; right: 10px; top: 10px;">Remove</button>
+        <input type="text" placeholder="First Name" data-field="first_name" data-index="${index}" style="margin-bottom: 5px; width: calc(100% - 80px);">
+        <input type="text" placeholder="Last Name" data-field="last_name" data-index="${index}" style="margin-bottom: 5px; width: calc(100% - 80px);">
+        <input type="email" placeholder="Email" data-field="email" data-index="${index}" required style="margin-bottom: 5px; width: calc(100% - 80px);">
+        <input type="text" placeholder="Position" data-field="position" data-index="${index}" style="width: calc(100% - 80px);">
     `;
     container.appendChild(div);
+};
+
+window.removeTarget = function(index) {
+    const container = document.getElementById('targets-container');
+    const target = container.querySelector(`[data-target-index="${index}"]`);
+    if (target) {
+        target.remove();
+    }
 };
 
 document.getElementById('new-group-btn').addEventListener('click', () => showGroupForm());

@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -609,6 +610,81 @@ func GenerateCredentialsPDF(w http.ResponseWriter, r *http.Request) {
 		pdf.Cell(30, 6, boolToCheckmark(submitted))
 		pdf.Cell(30, 6, boolToCheckmark(reported))
 		pdf.Ln(6)
+	}
+
+	// Harvested Credentials Section
+	pdf.Ln(10)
+	pdf.SetFont("Arial", "B", 14)
+	pdf.Cell(190, 8, "Harvested Credentials")
+	pdf.Ln(10)
+
+	// Query for harvested credentials
+	credRows, err := db.DB.Query(`
+		SELECT e.time, t.first_name, t.last_name, t.email, e.details
+		FROM events e
+		JOIN campaign_targets ct ON ct.id = e.campaign_target_id
+		JOIN targets t ON t.id = ct.target_id
+		WHERE e.campaign_id = ? AND e.message = 'Submitted Data'
+		ORDER BY e.time DESC`, campaignID)
+
+	if err == nil {
+		defer credRows.Close()
+
+		credCount := 0
+		for credRows.Next() {
+			var timestamp time.Time
+			var firstName, lastName, email, detailsJSON string
+			credRows.Scan(&timestamp, &firstName, &lastName, &email, &detailsJSON)
+
+			credCount++
+
+			// Parse credentials to extract email and password
+			var credentials map[string]interface{}
+			var submittedEmail, submittedPassword string
+			if json.Unmarshal([]byte(detailsJSON), &credentials) == nil {
+				// Try common field names for email
+				if val, ok := credentials["email"]; ok {
+					submittedEmail = fmt.Sprintf("%v", val)
+				} else if val, ok := credentials["username"]; ok {
+					submittedEmail = fmt.Sprintf("%v", val)
+				} else if val, ok := credentials["user"]; ok {
+					submittedEmail = fmt.Sprintf("%v", val)
+				}
+
+				// Try common field names for password
+				if val, ok := credentials["password"]; ok {
+					submittedPassword = fmt.Sprintf("%v", val)
+				} else if val, ok := credentials["pass"]; ok {
+					submittedPassword = fmt.Sprintf("%v", val)
+				} else if val, ok := credentials["pwd"]; ok {
+					submittedPassword = fmt.Sprintf("%v", val)
+				}
+			}
+
+			// Entry
+			pdf.SetFont("Arial", "B", 10)
+			pdf.Cell(190, 6, fmt.Sprintf("%d. %s %s (%s)", credCount, firstName, lastName, email))
+			pdf.Ln(6)
+
+			pdf.SetFont("Arial", "", 9)
+			pdf.Cell(190, 5, "  Time: "+timestamp.Format("2006-01-02 15:04:05"))
+			pdf.Ln(5)
+			if submittedEmail != "" {
+				pdf.Cell(190, 5, "  Email/Username: "+submittedEmail)
+				pdf.Ln(5)
+			}
+			if submittedPassword != "" {
+				pdf.Cell(190, 5, "  Password: "+submittedPassword)
+				pdf.Ln(5)
+			}
+			pdf.Ln(3)
+		}
+
+		if credCount == 0 {
+			pdf.SetFont("Arial", "I", 10)
+			pdf.Cell(190, 7, "No credentials submitted.")
+			pdf.Ln(7)
+		}
 	}
 
 	// Footer

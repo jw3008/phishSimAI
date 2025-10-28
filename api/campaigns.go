@@ -181,7 +181,7 @@ func CompleteCampaign(w http.ResponseWriter, r *http.Request) {
 
 func getCampaignResults(campaignID int) []models.Result {
 	rows, err := db.DB.Query(`
-		SELECT t.id, t.first_name, t.last_name, t.email, t.position, ct.status, ct.send_date
+		SELECT ct.id, t.first_name, t.last_name, t.email, t.position, ct.status, ct.send_date
 		FROM campaign_targets ct
 		JOIN targets t ON t.id = ct.target_id
 		WHERE ct.campaign_id = ?`, campaignID)
@@ -194,20 +194,36 @@ func getCampaignResults(campaignID int) []models.Result {
 	results := []models.Result{}
 	for rows.Next() {
 		var r models.Result
+		var campaignTargetID int
 		var sendDate sql.NullTime
-		rows.Scan(&r.ID, &r.FirstName, &r.LastName, &r.Email, &r.Position, &r.Status, &sendDate)
+		rows.Scan(&campaignTargetID, &r.FirstName, &r.LastName, &r.Email, &r.Position, &r.Status, &sendDate)
+		r.ID = campaignTargetID
 		if sendDate.Valid {
 			r.SendDate = sendDate.Time
 		}
 
-		// Get event times
+		// Get event times using sql.NullTime
+		var openDate, clickDate, submitDate, reportDate sql.NullTime
 		db.DB.QueryRow(`
 			SELECT MIN(CASE WHEN message = 'Email Opened' THEN time END),
 			       MIN(CASE WHEN message = 'Clicked Link' THEN time END),
 			       MIN(CASE WHEN message = 'Submitted Data' THEN time END),
 			       MIN(CASE WHEN message = 'Reported Phishing' THEN time END)
-			FROM events WHERE campaign_target_id = ?`, r.ID).
-			Scan(&r.OpenDate, &r.ClickDate, &r.SubmitDate, &r.ReportDate)
+			FROM events WHERE campaign_target_id = ?`, campaignTargetID).
+			Scan(&openDate, &clickDate, &submitDate, &reportDate)
+
+		if openDate.Valid {
+			r.OpenDate = openDate.Time
+		}
+		if clickDate.Valid {
+			r.ClickDate = clickDate.Time
+		}
+		if submitDate.Valid {
+			r.SubmitDate = submitDate.Time
+		}
+		if reportDate.Valid {
+			r.ReportDate = reportDate.Time
+		}
 
 		results = append(results, r)
 	}
