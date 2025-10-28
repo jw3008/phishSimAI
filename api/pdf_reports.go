@@ -514,7 +514,6 @@ func GenerateCredentialsPDF(w http.ResponseWriter, r *http.Request) {
 	// Get user details
 	rows, err := db.DB.Query(`
 		SELECT t.first_name, t.last_name, t.email, ct.status,
-		       EXISTS(SELECT 1 FROM events WHERE campaign_target_id = ct.id AND message = 'Email Opened') as opened,
 		       EXISTS(SELECT 1 FROM events WHERE campaign_target_id = ct.id AND message = 'Clicked Link') as clicked,
 		       EXISTS(SELECT 1 FROM events WHERE campaign_target_id = ct.id AND message = 'Submitted Data') as submitted,
 		       EXISTS(SELECT 1 FROM events WHERE campaign_target_id = ct.id AND message = 'Reported Phishing') as reported
@@ -591,24 +590,22 @@ func GenerateCredentialsPDF(w http.ResponseWriter, r *http.Request) {
 
 	// Table header
 	pdf.SetFont("Arial", "B", 9)
-	pdf.Cell(50, 7, "Name")
-	pdf.Cell(30, 7, "Opened")
-	pdf.Cell(30, 7, "Clicked")
-	pdf.Cell(30, 7, "Submitted")
-	pdf.Cell(30, 7, "Reported")
+	pdf.Cell(60, 7, "Name")
+	pdf.Cell(35, 7, "Clicked")
+	pdf.Cell(35, 7, "Submitted")
+	pdf.Cell(35, 7, "Reported")
 	pdf.Ln(7)
 
 	pdf.SetFont("Arial", "", 9)
 	for rows.Next() {
 		var firstName, lastName, email, status string
-		var opened, clicked, submitted, reported bool
-		rows.Scan(&firstName, &lastName, &email, &status, &opened, &clicked, &submitted, &reported)
+		var clicked, submitted, reported bool
+		rows.Scan(&firstName, &lastName, &email, &status, &clicked, &submitted, &reported)
 
-		pdf.Cell(50, 6, firstName+" "+lastName)
-		pdf.Cell(30, 6, boolToCheckmark(opened))
-		pdf.Cell(30, 6, boolToCheckmark(clicked))
-		pdf.Cell(30, 6, boolToCheckmark(submitted))
-		pdf.Cell(30, 6, boolToCheckmark(reported))
+		pdf.Cell(60, 6, firstName+" "+lastName)
+		pdf.Cell(35, 6, boolToCheckmark(clicked))
+		pdf.Cell(35, 6, boolToCheckmark(submitted))
+		pdf.Cell(35, 6, boolToCheckmark(reported))
 		pdf.Ln(6)
 	}
 

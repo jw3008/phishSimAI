@@ -184,8 +184,8 @@ async function loadCampaigns() {
                     <div class="stat-label">Sent</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value">${c.stats.opened}</div>
-                    <div class="stat-label">Opened</div>
+                    <div class="stat-value">${c.stats.reported}</div>
+                    <div class="stat-label">Reported</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-value">${c.stats.clicked}</div>
