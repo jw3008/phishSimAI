@@ -197,6 +197,13 @@ func createTables() error {
 		FOREIGN KEY (selected_option_id) REFERENCES answer_options(id)
 	);
 
+	CREATE TABLE IF NOT EXISTS settings (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		key TEXT UNIQUE NOT NULL,
+		value TEXT,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_events_campaign ON events(campaign_id);
 	CREATE INDEX IF NOT EXISTS idx_events_time ON events(time);
 	CREATE INDEX IF NOT EXISTS idx_campaign_targets_rid ON campaign_targets(rid);

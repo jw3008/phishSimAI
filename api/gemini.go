@@ -42,10 +42,13 @@ func GenerateTemplateWithGemini(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get API key from query parameter (user will provide it)
-	apiKey := r.URL.Query().Get("api_key")
+	// Get API key from settings or query parameter (fallback)
+	apiKey := GetGeminiAPIKey()
 	if apiKey == "" {
-		respondError(w, "Gemini API key is required. Please provide it as ?api_key=YOUR_KEY", http.StatusBadRequest)
+		apiKey = r.URL.Query().Get("api_key")
+	}
+	if apiKey == "" {
+		respondError(w, "Gemini API key not configured. Please configure it in Settings or provide it as ?api_key=YOUR_KEY", http.StatusBadRequest)
 		return
 	}
 
@@ -173,10 +176,13 @@ Respond in JSON format:
 
 // GenerateRandomPhishingTemplate generates a random phishing email template with one click
 func GenerateRandomPhishingTemplate(w http.ResponseWriter, r *http.Request) {
-	// Get API key from query parameter
-	apiKey := r.URL.Query().Get("api_key")
+	// Get API key from settings or query parameter (fallback)
+	apiKey := GetGeminiAPIKey()
 	if apiKey == "" {
-		respondError(w, "Gemini API key is required. Please provide it as ?api_key=YOUR_KEY", http.StatusBadRequest)
+		apiKey = r.URL.Query().Get("api_key")
+	}
+	if apiKey == "" {
+		respondError(w, "Gemini API key not configured. Please configure it in Settings or provide it as ?api_key=YOUR_KEY", http.StatusBadRequest)
 		return
 	}
 

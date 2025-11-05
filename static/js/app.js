@@ -144,6 +144,7 @@ document.querySelectorAll('.nav-link').forEach(link => {
             case 'smtp': loadSMTP(); break;
             case 'assessments': loadAssessments(); break;
             case 'user-management': loadUsers(); break;
+            case 'settings': loadSettings(); break;
             case 'awareness': loadAwarenessAssessments(); break;
             case 'my-results': loadMyResults(); break;
             case 'knowledge-base': initKnowledgeBase(); break;
@@ -1567,25 +1568,11 @@ async function sendChatMessage() {
     chatMessages.appendChild(loadingDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    // Get Gemini API key from user if not set
-    let apiKey = localStorage.getItem('gemini_api_key');
-    if (!apiKey) {
-        apiKey = prompt('Please enter your Gemini API Key (get it from https://aistudio.google.com/app/apikey):');
-        if (apiKey) {
-            localStorage.setItem('gemini_api_key', apiKey);
-        } else {
-            chatMessages.removeChild(loadingDiv);
-            addChatMessage('bot', 'API key is required to use the chatbot. Please refresh and provide your Gemini API key.');
-            return;
-        }
-    }
-
-    // Call API
+    // Call API (API key is now stored in settings)
     const result = await api.call('/knowledge-base/chat', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'X-Gemini-API-Key': apiKey
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({ question })
     });
@@ -1596,9 +1583,11 @@ async function sendChatMessage() {
     if (result && result.answer) {
         addChatMessage('bot', result.answer);
     } else {
-        addChatMessage('bot', 'Sorry, I encountered an error. Please try again or check your API key.');
-        if (result?.error?.includes('API key')) {
-            localStorage.removeItem('gemini_api_key');
+        const errorMsg = result?.error || 'Sorry, I encountered an error.';
+        if (errorMsg.includes('API key') || errorMsg.includes('not configured')) {
+            addChatMessage('bot', 'Gemini API key not configured. Please ask your administrator to configure the API key in Settings.\n\nGet a free API key from: https://aistudio.google.com/app/apikey');
+        } else {
+            addChatMessage('bot', 'Sorry, I encountered an error. Please try again.');
         }
     }
 }
@@ -1612,17 +1601,6 @@ document.getElementById('chat-input')?.addEventListener('keypress', (e) => {
 
 // AI Template Generation
 async function generateRandomTemplate() {
-    let apiKey = localStorage.getItem('gemini_api_key');
-    if (!apiKey) {
-        apiKey = prompt('Please enter your Gemini API Key (get it from https://aistudio.google.com/app/apikey):');
-        if (apiKey) {
-            localStorage.setItem('gemini_api_key', apiKey);
-        } else {
-            alert('API key is required to generate templates');
-            return;
-        }
-    }
-
     // Show loading modal
     showModal('Generating Template...', `
         <div style="text-align: center; padding: 40px;">
@@ -1638,7 +1616,7 @@ async function generateRandomTemplate() {
         </style>
     `);
 
-    const result = await api.get(`/templates/generate-random?api_key=${apiKey}`);
+    const result = await api.get(`/templates/generate-random`);
 
     if (result && result.success) {
         // Parse the generated template
@@ -1724,11 +1702,12 @@ async function generateRandomTemplate() {
     } else {
         closeModal();
         const errorMsg = result?.error || 'Failed to generate template. Please check your API key and try again.';
-        alert(errorMsg);
 
-        // If API key error, clear it so user can re-enter
-        if (errorMsg.includes('API key') || errorMsg.includes('api_key')) {
-            localStorage.removeItem('gemini_api_key');
+        // If API key error, show helpful message
+        if (errorMsg.includes('API key') || errorMsg.includes('not configured')) {
+            alert('Gemini API key not configured.\n\nPlease go to Settings to configure your Google AI Studio API key.\n\nGet your free API key from: https://aistudio.google.com/app/apikey');
+        } else {
+            alert(errorMsg);
         }
     }
 }
@@ -1848,3 +1827,65 @@ async function launchCampaignNow(campaignId) {
         showPage('login');
     }
 })();
+
+// Settings Management
+async function loadSettings() {
+    const settings = await api.get('/settings');
+    if (settings && settings.gemini_api_key) {
+        document.getElementById('gemini-api-key-input').value = settings.gemini_api_key;
+    }
+}
+
+document.getElementById('save-gemini-api-key-btn')?.addEventListener('click', async () => {
+    const apiKey = document.getElementById('gemini-api-key-input').value;
+    const messageDiv = document.getElementById('settings-message');
+
+    if (!apiKey) {
+        messageDiv.innerHTML = '<p style="color: #e74c3c;">Please enter an API key</p>';
+        return;
+    }
+
+    const result = await api.post('/settings', { key: 'gemini_api_key', value: apiKey });
+
+    if (result && result.success) {
+        messageDiv.innerHTML = '<p style="color: #27ae60;">✓ API key saved successfully!</p>';
+        // Clear localStorage cache if exists
+        localStorage.removeItem('gemini_api_key');
+    } else {
+        messageDiv.innerHTML = '<p style="color: #e74c3c;">✗ Failed to save API key</p>';
+    }
+});
+
+document.getElementById('test-gemini-api-key-btn')?.addEventListener('click', async () => {
+    const apiKey = document.getElementById('gemini-api-key-input').value;
+    const messageDiv = document.getElementById('settings-message');
+
+    if (!apiKey) {
+        messageDiv.innerHTML = '<p style="color: #e74c3c;">Please enter an API key to test</p>';
+        return;
+    }
+
+    messageDiv.innerHTML = '<p style="color: #3498db;">Testing connection...</p>';
+
+    // Test by making a simple API call to Gemini
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: 'Hello' }]
+                }]
+            })
+        });
+
+        if (response.ok) {
+            messageDiv.innerHTML = '<p style="color: #27ae60;">✓ API key is valid! Connection successful.</p>';
+        } else {
+            const error = await response.text();
+            messageDiv.innerHTML = `<p style="color: #e74c3c;">✗ API key test failed: ${response.status} - Please check your API key</p>`;
+        }
+    } catch (error) {
+        messageDiv.innerHTML = `<p style="color: #e74c3c;">✗ Connection failed: ${error.message}</p>`;
+    }
+});

@@ -25,15 +25,17 @@ func KnowledgeBaseChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get Gemini API key from environment
-	apiKey := os.Getenv("GEMINI_API_KEY")
+	// Get Gemini API key from settings, environment, or header (in that order)
+	apiKey := GetGeminiAPIKey()
 	if apiKey == "" {
-		// Check if provided in request header
+		apiKey = os.Getenv("GEMINI_API_KEY")
+	}
+	if apiKey == "" {
 		apiKey = r.Header.Get("X-Gemini-API-Key")
-		if apiKey == "" {
-			respondError(w, "Gemini API key not configured. Please set GEMINI_API_KEY environment variable or provide X-Gemini-API-Key header", http.StatusInternalServerError)
-			return
-		}
+	}
+	if apiKey == "" {
+		respondError(w, "Gemini API key not configured. Please configure it in Settings, set GEMINI_API_KEY environment variable, or provide X-Gemini-API-Key header", http.StatusInternalServerError)
+		return
 	}
 
 	// Create system prompt for security knowledge base
