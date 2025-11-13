@@ -117,7 +117,7 @@ Respond in JSON format:
 
 	jsonData, _ := json.Marshal(geminiReq)
 
-	geminiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s", apiKey)
+	geminiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=%s", apiKey)
 
 	resp, err := http.Post(geminiURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -247,7 +247,7 @@ Respond in JSON format:
 	}
 
 	jsonData, _ := json.Marshal(geminiReq)
-	geminiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s", apiKey)
+	geminiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=%s", apiKey)
 
 	resp, err := http.Post(geminiURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
