@@ -99,6 +99,13 @@ func RegisterRoutes(r *mux.Router) {
 	// Knowledge Base Chatbot (All authenticated users)
 	r.HandleFunc("/knowledge-base/chat", RequireAuth(KnowledgeBaseChat)).Methods("POST")
 
+	// Email Phishing Analysis (All authenticated users)
+	r.HandleFunc("/analyze-email", RequireAuth(AnalyzePhishingEmail)).Methods("POST")
+
+	// User Settings routes (All authenticated users)
+	r.HandleFunc("/user/settings", RequireAuth(GetUserSettings)).Methods("GET")
+	r.HandleFunc("/user/settings/api-key", RequireAuth(SaveUserAPIKey)).Methods("POST")
+
 	// Settings routes (Admin only)
 	r.HandleFunc("/settings", RequireAdmin(GetSettings)).Methods("GET")
 	r.HandleFunc("/settings", RequireAdmin(UpdateSetting)).Methods("POST")

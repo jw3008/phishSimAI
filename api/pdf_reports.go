@@ -118,10 +118,17 @@ func GenerateResultPDF(w http.ResponseWriter, r *http.Request) {
 
 	// Get detailed results
 	rows, err := db.DB.Query(`
-		SELECT q.question_text, q.points, ur.is_correct, ao.option_text, ao.is_correct as correct_answer
+		SELECT
+			q.question_text,
+			q.points,
+			ur.is_correct,
+			ur.points_earned,
+			selected.option_text as selected_option,
+			correct.option_text as correct_option
 		FROM user_responses ur
 		JOIN questions q ON ur.question_id = q.id
-		LEFT JOIN answer_options ao ON ur.answer_option_id = ao.id
+		LEFT JOIN answer_options selected ON ur.selected_option_id = selected.id
+		LEFT JOIN answer_options correct ON q.id = correct.question_id AND correct.is_correct = 1
 		WHERE ur.attempt_id = ?
 		ORDER BY q.question_order
 	`, attemptID)
@@ -135,21 +142,51 @@ func GenerateResultPDF(w http.ResponseWriter, r *http.Request) {
 
 		questionNum := 1
 		for rows.Next() {
-			var questionText, optionText string
-			var points float64
-			var isCorrect, correctAnswer bool
+			var questionText, selectedOption, correctOption sql.NullString
+			var points, pointsEarned sql.NullFloat64
+			var isCorrect sql.NullInt64
 
-			rows.Scan(&questionText, &points, &isCorrect, &optionText, &correctAnswer)
+			rows.Scan(&questionText, &points, &isCorrect, &pointsEarned, &selectedOption, &correctOption)
 
 			pdf.SetFont("Arial", "B", 11)
-			pdf.MultiCell(190, 6, fmt.Sprintf("Q%d. %s", questionNum, questionText), "", "L", false)
+			qText := "N/A"
+			if questionText.Valid {
+				qText = questionText.String
+			}
+			pdf.MultiCell(190, 6, fmt.Sprintf("Q%d. %s", questionNum, qText), "", "L", false)
 
 			pdf.SetFont("Arial", "", 10)
 			status := "✗ Incorrect"
-			if isCorrect {
+			isCorrectBool := false
+			if isCorrect.Valid && isCorrect.Int64 == 1 {
 				status = "✓ Correct"
+				isCorrectBool = true
 			}
-			pdf.Cell(190, 6, fmt.Sprintf("   Your answer: %s (%s)", optionText, status))
+
+			selectedText := "N/A"
+			if selectedOption.Valid {
+				selectedText = selectedOption.String
+			}
+
+			pdf.MultiCell(190, 6, fmt.Sprintf("   Your answer: %s (%s)", selectedText, status), "", "L", false)
+
+			// Show correct answer if user was wrong
+			if !isCorrectBool && correctOption.Valid {
+				pdf.SetFont("Arial", "I", 10)
+				pdf.MultiCell(190, 6, fmt.Sprintf("   Correct answer: %s", correctOption.String), "", "L", false)
+			}
+
+			// Show points
+			earnedPts := 0.0
+			totalPts := 0.0
+			if pointsEarned.Valid {
+				earnedPts = pointsEarned.Float64
+			}
+			if points.Valid {
+				totalPts = points.Float64
+			}
+			pdf.SetFont("Arial", "", 9)
+			pdf.Cell(190, 5, fmt.Sprintf("   Points: %.0f / %.0f", earnedPts, totalPts))
 			pdf.Ln(6)
 			pdf.Ln(4)
 

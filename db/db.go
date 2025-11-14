@@ -240,6 +240,11 @@ func runMigrations() error {
 		log.Println("Migration: Added role column to users table")
 	}
 
+	// Migrate user API key column
+	if err := MigrateUserAPIKey(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

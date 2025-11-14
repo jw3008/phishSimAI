@@ -148,6 +148,7 @@ document.querySelectorAll('.nav-link').forEach(link => {
             case 'awareness': loadAwarenessAssessments(); break;
             case 'my-results': loadMyResults(); break;
             case 'knowledge-base': initKnowledgeBase(); break;
+            case 'user-settings': loadUserSettings(); break;
         }
     });
 });
@@ -1004,6 +1005,12 @@ function showAssessmentForm() {
 // ============================================
 
 async function loadAwarenessAssessments() {
+    // Initialize email analyzer
+    initEmailAnalyzerAwareness();
+
+    // Initialize inline chatbot
+    initInlineChatbot();
+
     const assessments = await api.get('/user/assessments');
     const container = document.getElementById('awareness-list');
 
@@ -1027,7 +1034,8 @@ async function loadAwarenessAssessments() {
                         `<button class="btn btn-primary" onclick="startAssessment(${a.id})">Start Assessment</button>` :
                         a.status === 'In Progress' ?
                         `<button class="btn btn-warning" onclick="continueAssessment(${a.id}, ${a.attempt_id})">Continue</button>` :
-                        `<button class="btn btn-secondary" onclick="viewMyResult(${a.attempt_id})">View Result</button>`
+                        `<button class="btn btn-secondary" onclick="viewMyResult(${a.attempt_id})">View Details</button>
+                         <button class="btn btn-primary" onclick="downloadResultPDF(${a.attempt_id})" style="margin-left: 10px;">Download PDF</button>`
                     }
                 </div>
             </div>
@@ -1058,6 +1066,9 @@ async function takeAssessment(assessmentId, attemptId) {
         const q = assessment.questions[currentQuestionIndex];
         const progress = ((currentQuestionIndex + 1) / assessment.questions.length * 100).toFixed(0);
 
+        // Get previously selected answer for this question
+        const previousAnswer = userAnswers[q.id];
+
         return `
             <div style="margin-bottom: 20px;">
                 <div style="background: #e0e0e0; height: 10px; border-radius: 5px; margin-bottom: 20px;">
@@ -1070,8 +1081,8 @@ async function takeAssessment(assessmentId, attemptId) {
             <form id="question-form">
                 ${q.answer_options.map(opt => `
                     <div class="form-group" style="margin: 15px 0;">
-                        <label style="display: flex; align-items: center; padding: 15px; border: 2px solid #ddd; border-radius: 5px; cursor: pointer;">
-                            <input type="radio" name="answer" value="${opt.id}" required style="margin-right: 10px;">
+                        <label style="display: flex; align-items: center; padding: 15px; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; background: ${previousAnswer === opt.id ? '#e3f2fd' : 'transparent'};">
+                            <input type="radio" name="answer" value="${opt.id}" ${previousAnswer === opt.id ? 'checked' : ''} required style="margin-right: 10px;">
                             <span>${opt.option_text}</span>
                         </label>
                     </div>
@@ -1085,83 +1096,51 @@ async function takeAssessment(assessmentId, attemptId) {
         `;
     }
 
-    showModal(`Taking Assessment: ${assessment.title}`, renderQuestion());
-
-    // Handle form submission
-    document.getElementById('question-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const selectedOption = parseInt(formData.get('answer'));
-
-        const q = assessment.questions[currentQuestionIndex];
-        userAnswers[q.id] = selectedOption;
-
-        // Save the response to backend
-        await api.post(`/user/assessments/attempt/${attemptId}/submit`, {
-            question_id: q.id,
-            selected_option_id: selectedOption
-        });
-
-        // Move to next question or complete
-        if (currentQuestionIndex < assessment.questions.length - 1) {
-            currentQuestionIndex++;
-            showModal(`Taking Assessment: ${assessment.title}`, renderQuestion());
-            setupQuestionHandlers();
-        } else {
-            // Complete the assessment
-            const result = await api.post(`/user/assessments/attempt/${attemptId}/complete`);
-            if (result && result.success) {
-                showModal('Assessment Completed!', `
-                    <div style="text-align: center;">
-                        <h2 style="color: #4CAF50;">Congratulations!</h2>
-                        <p>You have completed the assessment.</p>
-                        <div class="stats">
-                            <div class="stat-item">
-                                <div class="stat-value">${result.score}</div>
-                                <div class="stat-label">Score</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${result.total}</div>
-                                <div class="stat-label">Total Points</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${result.percentage.toFixed(1)}%</div>
-                                <div class="stat-label">Percentage</div>
-                            </div>
-                        </div>
-                        <br>
-                        <button class="btn btn-primary" onclick="viewMyResult(${result.attempt_id})">View Detailed Results</button>
-                        <button class="btn btn-secondary" onclick="closeModal(); loadAwarenessAssessments();">Close</button>
-                    </div>
-                `);
-            }
-        }
-    });
-
     function setupQuestionHandlers() {
-        document.getElementById('question-form').addEventListener('submit', async (e) => {
+        const form = document.getElementById('question-form');
+        if (!form) return;
+
+        // Remove any existing listeners by cloning the form
+        const newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
+
+        // Add submit handler
+        newForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const selectedOption = parseInt(formData.get('answer'));
 
+            if (!selectedOption) {
+                alert('Please select an answer before continuing.');
+                return;
+            }
+
             const q = assessment.questions[currentQuestionIndex];
             userAnswers[q.id] = selectedOption;
 
-            await api.post(`/user/assessments/attempt/${attemptId}/submit`, {
-                question_id: q.id,
-                selected_option_id: selectedOption
-            });
+            // Save the response to backend
+            try {
+                await api.post(`/user/assessments/attempt/${attemptId}/submit`, {
+                    question_id: q.id,
+                    selected_option_id: selectedOption
+                });
+            } catch (error) {
+                alert('Error saving answer. Please try again.');
+                return;
+            }
 
+            // Move to next question or complete
             if (currentQuestionIndex < assessment.questions.length - 1) {
                 currentQuestionIndex++;
                 showModal(`Taking Assessment: ${assessment.title}`, renderQuestion());
                 setupQuestionHandlers();
             } else {
+                // Complete the assessment
                 const result = await api.post(`/user/assessments/attempt/${attemptId}/complete`);
                 if (result && result.success) {
                     showModal('Assessment Completed!', `
                         <div style="text-align: center;">
-                            <h2 style="color: #4CAF50;">Congratulations!</h2>
+                            <h2 style="color: #4CAF50;">🎉 Congratulations!</h2>
                             <p>You have completed the assessment.</p>
                             <div class="stats">
                                 <div class="stat-item">
@@ -1178,24 +1157,36 @@ async function takeAssessment(assessmentId, attemptId) {
                                 </div>
                             </div>
                             <br>
-                            <button class="btn btn-primary" onclick="viewMyResult(${result.attempt_id})">View Detailed Results</button>
-                            <button class="btn btn-secondary" onclick="closeModal(); loadAwarenessAssessments();">Close</button>
+                            <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 5px;">
+                                <p style="margin: 10px 0; font-size: 14px;">💡 You can view your results anytime from the <strong>My Results</strong> page in the navigation menu.</p>
+                            </div>
+                            <br>
+                            <button class="btn btn-primary" onclick="viewMyResult(${result.attempt_id})">View Detailed Results Now</button>
+                            <button class="btn btn-success" onclick="downloadResultPDF(${result.attempt_id})" style="margin-left: 10px;">Download PDF</button>
+                            <br><br>
+                            <button class="btn btn-info" onclick="closeModal(); showView('my-results'); loadMyResults();" style="margin-right: 10px;">Go to My Results</button>
+                            <button class="btn btn-secondary" onclick="closeModal(); loadAwarenessAssessments();">Back to Assessments</button>
                         </div>
                     `);
                 }
             }
         });
 
+        // Add previous button handler
         const prevBtn = document.getElementById('prev-btn');
         if (prevBtn) {
             prevBtn.addEventListener('click', () => {
-                currentQuestionIndex--;
-                showModal(`Taking Assessment: ${assessment.title}`, renderQuestion());
-                setupQuestionHandlers();
+                if (currentQuestionIndex > 0) {
+                    currentQuestionIndex--;
+                    showModal(`Taking Assessment: ${assessment.title}`, renderQuestion());
+                    setupQuestionHandlers();
+                }
             });
         }
     }
 
+    // Initial render
+    showModal(`Taking Assessment: ${assessment.title}`, renderQuestion());
     setupQuestionHandlers();
 }
 
@@ -1270,12 +1261,34 @@ async function viewMyResult(attemptId) {
         <hr>
         <h3>Question Review</h3>
         ${responsesHTML}
+        <div style="margin-top: 30px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px;">
+            <button class="btn btn-secondary" onclick="closeModal()">← Back to My Results</button>
+            <button class="btn btn-primary" onclick="downloadResultPDF(${attemptId})" style="margin-left: 10px;">📄 Download PDF</button>
+        </div>
     `);
 }
 
 function downloadResultPDF(attemptId) {
-    // Open PDF download in new window
-    window.open(`/api/user/results/${attemptId}/pdf`, '_blank');
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = `/api/user/results/${attemptId}/pdf`;
+    link.download = `assessment_result_${attemptId}.pdf`;
+    link.target = '_blank';
+
+    // Append to body, click, and remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Show feedback
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px 20px; border-radius: 5px; z-index: 10000; box-shadow: 0 2px 5px rgba(0,0,0,0.2);';
+    messageDiv.textContent = '✓ PDF download started!';
+    document.body.appendChild(messageDiv);
+
+    setTimeout(() => {
+        document.body.removeChild(messageDiv);
+    }, 3000);
 }
 
 // ============================================
@@ -1688,8 +1701,8 @@ async function generateRandomTemplate() {
             const data = {
                 name: formData.get('name'),
                 subject: formData.get('subject'),
-                html_content: formData.get('html'),
-                text_content: formData.get('text')
+                html: formData.get('html'),
+                text: formData.get('text')
             };
 
             const saveResult = await api.post('/templates', data);
@@ -1887,5 +1900,610 @@ document.getElementById('test-gemini-api-key-btn')?.addEventListener('click', as
         }
     } catch (error) {
         messageDiv.innerHTML = `<p style="color: #e74c3c;">✗ Connection failed: ${error.message}</p>`;
+    }
+});
+
+// ============================================
+// EMAIL PHISHING ANALYZER
+// ============================================
+
+function initEmailAnalyzer() {
+    // Clear previous results
+    document.getElementById('email-text-input').value = '';
+    document.getElementById('analysis-result').style.display = 'none';
+    document.getElementById('analysis-loading').style.display = 'none';
+}
+
+// Analyze Email Button
+document.getElementById('analyze-email-btn')?.addEventListener('click', async () => {
+    const emailText = document.getElementById('email-text-input').value.trim();
+    const loadingDiv = document.getElementById('analysis-loading');
+    const resultDiv = document.getElementById('analysis-result');
+
+    if (!emailText) {
+        alert('Please paste an email to analyze');
+        return;
+    }
+
+    // Show loading, hide previous results
+    loadingDiv.style.display = 'block';
+    resultDiv.style.display = 'none';
+    loadingDiv.innerHTML = '<p>🤖 Analyzing email with AI... This may take a few moments.</p>';
+
+    try {
+        const result = await api.post('/analyze-email', { email_text: emailText });
+
+        loadingDiv.style.display = 'none';
+
+        if (result && result.success) {
+            displayAnalysisResult(result.result);
+            resultDiv.style.display = 'block';
+        } else if (result && result.error) {
+            // Check for specific API errors
+            const errorMsg = result.error;
+            if (errorMsg.includes('503') || errorMsg.includes('overloaded') || errorMsg.includes('UNAVAILABLE')) {
+                showApiOverloadMessage();
+            } else if (errorMsg.includes('API key not configured')) {
+                alert('⚠️ Gemini API Key Not Configured\n\nPlease ask your administrator to:\n1. Go to Settings\n2. Enter a Gemini API key\n3. Save and test the connection\n\nGet a free API key at: https://aistudio.google.com/app/apikey');
+            } else {
+                alert('Failed to analyze email: ' + errorMsg);
+            }
+        } else {
+            alert('Failed to analyze email. Please check if Gemini API is configured in Settings.');
+        }
+    } catch (error) {
+        loadingDiv.style.display = 'none';
+        alert('Error analyzing email: ' + error.message);
+    }
+});
+
+function showApiOverloadMessage() {
+    const resultDiv = document.getElementById('analysis-result');
+    resultDiv.innerHTML = `
+        <div class="card" style="background: #fff3e0; border-left: 4px solid #ff9800;">
+            <h3>⚠️ Google AI Service Temporarily Unavailable</h3>
+            <p><strong>The Gemini API is experiencing high traffic (Error 503 - Service Overloaded)</strong></p>
+
+            <h4 style="margin-top: 20px;">What This Means:</h4>
+            <ul style="line-height: 1.8;">
+                <li>✅ Your PhishSimAI application is working correctly</li>
+                <li>⚠️ Google's AI servers are temporarily overloaded</li>
+                <li>🔄 This is usually temporary and resolves within minutes</li>
+            </ul>
+
+            <h4 style="margin-top: 20px;">What To Do:</h4>
+            <ol style="line-height: 1.8;">
+                <li><strong>Wait 30-60 seconds</strong> and try again</li>
+                <li>Try during off-peak hours (early morning/late evening)</li>
+                <li>Check your API quota at: <a href="https://aistudio.google.com" target="_blank">Google AI Studio</a></li>
+                <li>Consider using a paid API tier for better reliability</li>
+            </ol>
+
+            <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 5px;">
+                <h4>💡 Try These Features Instead (No API Required):</h4>
+                <ul>
+                    <li>📝 Complete Security Awareness Assessments</li>
+                    <li>📄 Download PDF reports of your results</li>
+                    <li>📊 View your assessment history</li>
+                </ul>
+            </div>
+
+            <button class="btn btn-primary" onclick="document.getElementById('analyze-email-btn').click()" style="margin-top: 20px;">
+                🔄 Try Again Now
+            </button>
+        </div>
+    `;
+    resultDiv.style.display = 'block';
+}
+
+// Clear Email Button
+document.getElementById('clear-email-btn')?.addEventListener('click', () => {
+    document.getElementById('email-text-input').value = '';
+    document.getElementById('analysis-result').style.display = 'none';
+});
+
+function displayAnalysisResult(result) {
+    const summaryDiv = document.getElementById('result-summary');
+    const indicatorsDiv = document.getElementById('result-indicators');
+    const explanationDiv = document.getElementById('result-explanation');
+    const recommendationsDiv = document.getElementById('result-recommendations');
+
+    // Determine the verdict and color
+    const isPhishing = result.is_phishing;
+    const riskLevel = result.risk_level || 'unknown';
+    const confidenceScore = result.confidence_score || 0;
+
+    let verdictColor = '#4CAF50'; // green for legitimate
+    let verdictText = '✓ LEGITIMATE';
+    let verdictBg = '#e8f5e9';
+
+    if (isPhishing) {
+        if (riskLevel === 'critical' || confidenceScore > 90) {
+            verdictColor = '#d32f2f';
+            verdictText = '⚠️ PHISHING - HIGH RISK';
+            verdictBg = '#ffebee';
+        } else if (riskLevel === 'high' || confidenceScore > 70) {
+            verdictColor = '#f57c00';
+            verdictText = '⚠️ LIKELY PHISHING';
+            verdictBg = '#fff3e0';
+        } else {
+            verdictColor = '#ff9800';
+            verdictText = '⚠️ SUSPICIOUS';
+            verdictBg = '#fff8e1';
+        }
+    }
+
+    // Helper function to escape HTML and preserve formatting
+    const formatText = (text) => {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>');
+    };
+
+    // Summary Card
+    summaryDiv.innerHTML = `
+        <div style="background: ${verdictBg}; padding: 20px; border-radius: 8px; border-left: 5px solid ${verdictColor}; word-wrap: break-word; overflow-wrap: break-word;">
+            <h2 style="margin: 0; color: ${verdictColor}; word-wrap: break-word;">${verdictText}</h2>
+            <div style="margin-top: 15px; display: flex; gap: 30px; flex-wrap: wrap;">
+                <div>
+                    <p style="margin: 5px 0; color: #666; font-size: 14px;">Confidence Score</p>
+                    <p style="margin: 0; font-size: 24px; font-weight: bold; color: ${verdictColor};">${confidenceScore}%</p>
+                </div>
+                <div>
+                    <p style="margin: 5px 0; color: #666; font-size: 14px;">Risk Level</p>
+                    <p style="margin: 0; font-size: 24px; font-weight: bold; color: ${verdictColor};">${riskLevel.toUpperCase()}</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Phishing Indicators
+    if (result.indicators && result.indicators.length > 0) {
+        indicatorsDiv.innerHTML = `
+            <div class="card" style="word-wrap: break-word; overflow-wrap: break-word;">
+                <h3>🔍 Phishing Indicators Found</h3>
+                <ul style="list-style-type: none; padding: 0; margin: 0;">
+                    ${result.indicators.map(indicator => `
+                        <li style="padding: 10px; margin: 5px 0; background: #fff3e0; border-left: 3px solid #ff9800; border-radius: 4px; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%;">
+                            <span style="display: inline-block; word-break: break-word;">⚠️ ${formatText(indicator)}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    } else {
+        indicatorsDiv.innerHTML = '';
+    }
+
+    // Explanation
+    if (result.explanation) {
+        explanationDiv.innerHTML = `
+            <div class="card" style="word-wrap: break-word; overflow-wrap: break-word;">
+                <h3>📋 Detailed Analysis</h3>
+                <div style="line-height: 1.8; color: #333; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%;">
+                    ${formatText(result.explanation)}
+                </div>
+            </div>
+        `;
+    } else {
+        explanationDiv.innerHTML = '';
+    }
+
+    // Recommendations
+    if (result.recommendations && result.recommendations.length > 0) {
+        recommendationsDiv.innerHTML = `
+            <div class="card" style="background: #e3f2fd; border-left: 4px solid #2196F3; word-wrap: break-word; overflow-wrap: break-word;">
+                <h3>💡 Recommendations</h3>
+                <ul style="line-height: 1.8; color: #333; padding-left: 20px;">
+                    ${result.recommendations.map(rec => `
+                        <li style="margin: 8px 0; word-wrap: break-word; overflow-wrap: break-word;">
+                            ${formatText(rec)}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    } else {
+        recommendationsDiv.innerHTML = '';
+    }
+}
+
+// ============================================
+// EMAIL ANALYZER - AWARENESS PAGE INTEGRATION
+// ============================================
+
+function initEmailAnalyzerAwareness() {
+    // Clear previous results
+    const emailInput = document.getElementById('email-text-awareness');
+    const resultDiv = document.getElementById('analysis-result-awareness');
+    const loadingDiv = document.getElementById('analysis-loading-awareness');
+
+    if (emailInput) emailInput.value = '';
+    if (resultDiv) resultDiv.style.display = 'none';
+    if (loadingDiv) loadingDiv.style.display = 'none';
+
+    // Setup event listeners
+    setupEmailAnalyzerAwarenessHandlers();
+}
+
+function setupEmailAnalyzerAwarenessHandlers() {
+    // Analyze Email Button (Awareness Page)
+    const analyzeBtn = document.getElementById('analyze-email-awareness-btn');
+    const clearBtn = document.getElementById('clear-email-awareness-btn');
+
+    if (analyzeBtn) {
+        // Remove old listeners
+        const newAnalyzeBtn = analyzeBtn.cloneNode(true);
+        analyzeBtn.parentNode.replaceChild(newAnalyzeBtn, analyzeBtn);
+
+        newAnalyzeBtn.addEventListener('click', async () => {
+            const emailText = document.getElementById('email-text-awareness').value.trim();
+            const loadingDiv = document.getElementById('analysis-loading-awareness');
+            const resultDiv = document.getElementById('analysis-result-awareness');
+
+            if (!emailText) {
+                alert('Please paste an email to analyze');
+                return;
+            }
+
+            // Show loading, hide previous results
+            loadingDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+            loadingDiv.innerHTML = '<p>🤖 Analyzing email with AI... This may take a few moments.</p>';
+
+            try {
+                const result = await api.post('/analyze-email', { email_text: emailText });
+
+                loadingDiv.style.display = 'none';
+
+                if (result && result.success) {
+                    displayAnalysisResultAwareness(result.result);
+                    resultDiv.style.display = 'block';
+                    // Scroll to results
+                    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else if (result && result.error) {
+                    // Check for specific API errors
+                    const errorMsg = result.error;
+                    if (errorMsg.includes('503') || errorMsg.includes('overloaded') || errorMsg.includes('UNAVAILABLE')) {
+                        showApiOverloadMessageAwareness();
+                    } else if (errorMsg.includes('API key not configured')) {
+                        alert('⚠️ Gemini API Key Not Configured\n\nPlease configure your own API key:\n1. Go to "My Settings" in the menu\n2. Paste your Gemini API key\n3. Click "Save My API Key"\n4. Click "Test Connection" to verify\n\nGet your FREE API key at: https://aistudio.google.com/app/apikey');
+                    } else {
+                        alert('Failed to analyze email: ' + errorMsg);
+                    }
+                } else {
+                    alert('Failed to analyze email. Please configure your API key in My Settings.');
+                }
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                alert('Error analyzing email: ' + error.message);
+            }
+        });
+    }
+
+    if (clearBtn) {
+        // Remove old listeners
+        const newClearBtn = clearBtn.cloneNode(true);
+        clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
+
+        newClearBtn.addEventListener('click', () => {
+            document.getElementById('email-text-awareness').value = '';
+            document.getElementById('analysis-result-awareness').style.display = 'none';
+        });
+    }
+}
+
+function displayAnalysisResultAwareness(result) {
+    const summaryDiv = document.getElementById('result-summary-awareness');
+    const indicatorsDiv = document.getElementById('result-indicators-awareness');
+    const explanationDiv = document.getElementById('result-explanation-awareness');
+    const recommendationsDiv = document.getElementById('result-recommendations-awareness');
+
+    // Determine the verdict and color
+    const isPhishing = result.is_phishing;
+    const riskLevel = result.risk_level || 'unknown';
+    const confidenceScore = result.confidence_score || 0;
+
+    let verdictColor = '#4CAF50'; // green for legitimate
+    let verdictText = '✓ LEGITIMATE';
+    let verdictBg = '#e8f5e9';
+
+    if (isPhishing) {
+        if (riskLevel === 'critical' || confidenceScore > 90) {
+            verdictColor = '#d32f2f';
+            verdictText = '⚠️ PHISHING - HIGH RISK';
+            verdictBg = '#ffebee';
+        } else if (riskLevel === 'high' || confidenceScore > 70) {
+            verdictColor = '#f57c00';
+            verdictText = '⚠️ LIKELY PHISHING';
+            verdictBg = '#fff3e0';
+        } else {
+            verdictColor = '#ff9800';
+            verdictText = '⚠️ SUSPICIOUS';
+            verdictBg = '#fff8e1';
+        }
+    }
+
+    // Helper function to escape HTML and preserve formatting
+    const formatText = (text) => {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>');
+    };
+
+    // Summary Card
+    summaryDiv.innerHTML = `
+        <div style="background: ${verdictBg}; padding: 20px; border-radius: 8px; border-left: 5px solid ${verdictColor}; word-wrap: break-word; overflow-wrap: break-word;">
+            <h3 style="margin: 0; color: ${verdictColor}; word-wrap: break-word;">${verdictText}</h3>
+            <div style="margin-top: 15px; display: flex; gap: 30px; flex-wrap: wrap;">
+                <div>
+                    <p style="margin: 5px 0; color: #666; font-size: 14px;">Confidence Score</p>
+                    <p style="margin: 0; font-size: 24px; font-weight: bold; color: ${verdictColor};">${confidenceScore}%</p>
+                </div>
+                <div>
+                    <p style="margin: 5px 0; color: #666; font-size: 14px;">Risk Level</p>
+                    <p style="margin: 0; font-size: 24px; font-weight: bold; color: ${verdictColor};">${riskLevel.toUpperCase()}</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Phishing Indicators
+    if (result.indicators && result.indicators.length > 0) {
+        indicatorsDiv.innerHTML = `
+            <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; word-wrap: break-word; overflow-wrap: break-word;">
+                <h4 style="margin-top: 0; color: #333;">🔍 Phishing Indicators Found</h4>
+                <ul style="list-style-type: none; padding: 0; margin: 0;">
+                    ${result.indicators.map(indicator => `
+                        <li style="padding: 10px; margin: 5px 0; background: #fff3e0; border-left: 3px solid #ff9800; border-radius: 4px; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%;">
+                            <span style="display: inline-block; word-break: break-word; color: #333;">⚠️ ${formatText(indicator)}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    } else {
+        indicatorsDiv.innerHTML = '';
+    }
+
+    // Explanation
+    if (result.explanation) {
+        explanationDiv.innerHTML = `
+            <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; word-wrap: break-word; overflow-wrap: break-word;">
+                <h4 style="margin-top: 0; color: #333;">📋 Detailed Analysis</h4>
+                <div style="line-height: 1.8; color: #333; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 100%;">
+                    ${formatText(result.explanation)}
+                </div>
+            </div>
+        `;
+    } else {
+        explanationDiv.innerHTML = '';
+    }
+
+    // Recommendations
+    if (result.recommendations && result.recommendations.length > 0) {
+        recommendationsDiv.innerHTML = `
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196F3; word-wrap: break-word; overflow-wrap: break-word;">
+                <h4 style="margin-top: 0; color: #333;">💡 Recommendations</h4>
+                <ul style="line-height: 1.8; color: #333; padding-left: 20px;">
+                    ${result.recommendations.map(rec => `
+                        <li style="margin: 8px 0; word-wrap: break-word; overflow-wrap: break-word;">
+                            ${formatText(rec)}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    } else {
+        recommendationsDiv.innerHTML = '';
+    }
+}
+
+function showApiOverloadMessageAwareness() {
+    const resultDiv = document.getElementById('analysis-result-awareness');
+    resultDiv.innerHTML = `
+        <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9800;">
+            <h4 style="color: #333; margin-top: 0;">⚠️ Google AI Service Temporarily Unavailable</h4>
+            <p style="color: #333;"><strong>The Gemini API is experiencing high traffic (Error 503 - Service Overloaded)</strong></p>
+
+            <h5 style="margin-top: 20px; color: #333;">What This Means:</h5>
+            <ul style="line-height: 1.8; color: #333;">
+                <li>✅ Your PhishSimAI application is working correctly</li>
+                <li>⚠️ Google's AI servers are temporarily overloaded</li>
+                <li>🔄 This is usually temporary and resolves within minutes</li>
+            </ul>
+
+            <h5 style="margin-top: 20px; color: #333;">What To Do:</h5>
+            <ol style="line-height: 1.8; color: #333;">
+                <li><strong>Wait 30-60 seconds</strong> and try again</li>
+                <li>Try during off-peak hours (early morning/late evening)</li>
+                <li>Check your API quota at: <a href="https://aistudio.google.com" target="_blank">Google AI Studio</a></li>
+            </ol>
+
+            <button class="btn btn-primary" onclick="document.getElementById('analyze-email-awareness-btn').click()" style="margin-top: 20px; background: #667eea; border: none;">
+                🔄 Try Again Now
+            </button>
+        </div>
+    `;
+    resultDiv.style.display = 'block';
+}
+
+// Inline Chatbot Functions (on Awareness page)
+function initInlineChatbot() {
+    const chatMessages = document.getElementById('inline-chat-messages');
+    if (!chatMessages) return;
+
+    chatMessages.innerHTML = `
+        <div class="chat-message bot-message" style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+            <strong style="color: #1976d2;">Security Assistant:</strong>
+            <p style="margin: 5px 0 0 0; color: #333;">Hello! I'm your security awareness assistant. Ask me anything about phishing, cybersecurity, or online safety!</p>
+        </div>
+    `;
+
+    setupInlineChatHandlers();
+}
+
+function setupInlineChatHandlers() {
+    const sendBtn = document.getElementById('inline-chat-send-btn');
+    const chatInput = document.getElementById('inline-chat-input');
+
+    if (!sendBtn || !chatInput) return;
+
+    // Remove old listeners
+    const newSendBtn = sendBtn.cloneNode(true);
+    sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
+
+    const newChatInput = chatInput.cloneNode(true);
+    chatInput.parentNode.replaceChild(newChatInput, chatInput);
+
+    // Add click handler
+    newSendBtn.addEventListener('click', sendInlineChatMessage);
+
+    // Add enter key handler
+    newChatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendInlineChatMessage();
+        }
+    });
+}
+
+async function sendInlineChatMessage() {
+    const input = document.getElementById('inline-chat-input');
+    const question = input.value.trim();
+
+    if (!question) return;
+
+    const chatMessages = document.getElementById('inline-chat-messages');
+
+    // Add user message
+    addInlineChatMessage('user', question);
+    input.value = '';
+
+    // Add loading message
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'chat-message bot-message loading';
+    loadingDiv.style.cssText = 'background: #f5f5f5; padding: 12px; border-radius: 8px; margin-bottom: 10px;';
+    loadingDiv.innerHTML = '<p style="margin: 0; color: #666;">🤔 Thinking...</p>';
+    chatMessages.appendChild(loadingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Call API
+    const result = await api.post('/knowledge-base/chat', { question });
+
+    // Remove loading message
+    chatMessages.removeChild(loadingDiv);
+
+    if (result && result.answer) {
+        addInlineChatMessage('bot', result.answer);
+    } else {
+        addInlineChatMessage('bot', 'Sorry, I encountered an error. Please make sure your API key is configured in My Settings.');
+    }
+}
+
+function addInlineChatMessage(role, message) {
+    const chatMessages = document.getElementById('inline-chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${role}-message`;
+
+    if (role === 'user') {
+        messageDiv.style.cssText = 'background: #4CAF50; color: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; margin-left: 40px;';
+        messageDiv.innerHTML = `
+            <strong>You:</strong>
+            <p style="margin: 5px 0 0 0;">${escapeHtml(message)}</p>
+        `;
+    } else {
+        messageDiv.style.cssText = 'background: #e3f2fd; padding: 12px; border-radius: 8px; margin-bottom: 10px;';
+        messageDiv.innerHTML = `
+            <strong style="color: #1976d2;">Security Assistant:</strong>
+            <p style="margin: 5px 0 0 0; color: #333;">${escapeHtml(message)}</p>
+        `;
+    }
+
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// User Settings Functions
+async function loadUserSettings() {
+    // Simple settings load - matches admin page style
+    const messageDiv = document.getElementById('user-settings-message');
+    if (messageDiv) {
+        messageDiv.innerHTML = '';
+    }
+}
+
+async function saveUserAPIKey() {
+    const apiKeyInput = document.getElementById('user-api-key-input');
+    const apiKey = apiKeyInput.value.trim();
+    const messageDiv = document.getElementById('user-settings-message');
+
+    if (!apiKey) {
+        messageDiv.innerHTML = '<p style="color: #d32f2f;">Please enter a valid API key</p>';
+        return;
+    }
+
+    const btn = document.getElementById('save-api-key-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    messageDiv.innerHTML = '<p style="color: #666;">Saving API key...</p>';
+
+    const result = await api.post('/user/settings/api-key', { api_key: apiKey });
+
+    if (result && result.success) {
+        messageDiv.innerHTML = '<p style="color: #4CAF50;">✓ API key saved successfully!</p>';
+        apiKeyInput.value = ''; // Clear input for security
+    } else {
+        messageDiv.innerHTML = '<p style="color: #d32f2f;">Failed to save API key. Please try again.</p>';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Save API Key';
+}
+
+async function testUserAPIKey() {
+    const testBtn = document.getElementById('test-api-key-btn');
+    const messageDiv = document.getElementById('user-settings-message');
+
+    testBtn.disabled = true;
+    testBtn.textContent = 'Testing...';
+    messageDiv.innerHTML = '<p style="color: #666;">Testing API connection...</p>';
+
+    // Test by asking a simple question to the knowledge base
+    const result = await api.post('/knowledge-base/chat', {
+        question: 'What is phishing?'
+    });
+
+    if (result && result.answer) {
+        messageDiv.innerHTML = '<p style="color: #4CAF50;">✓ API key is working correctly!</p>';
+    } else {
+        messageDiv.innerHTML = '<p style="color: #d32f2f;">API key test failed. Please check your configuration.</p>';
+    }
+
+    testBtn.disabled = false;
+    testBtn.textContent = 'Test Connection';
+}
+
+// Initialize event listeners for user settings
+document.addEventListener('DOMContentLoaded', () => {
+    const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+    if (saveApiKeyBtn) {
+        saveApiKeyBtn.addEventListener('click', saveUserAPIKey);
+    }
+
+    const testApiKeyBtn = document.getElementById('test-api-key-btn');
+    if (testApiKeyBtn) {
+        testApiKeyBtn.addEventListener('click', testUserAPIKey);
     }
 });
