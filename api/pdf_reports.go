@@ -156,10 +156,10 @@ func GenerateResultPDF(w http.ResponseWriter, r *http.Request) {
 			pdf.MultiCell(190, 6, fmt.Sprintf("Q%d. %s", questionNum, qText), "", "L", false)
 
 			pdf.SetFont("Arial", "", 10)
-			status := "✗ Incorrect"
+			status := "Incorrect"
 			isCorrectBool := false
 			if isCorrect.Valid && isCorrect.Int64 == 1 {
-				status = "✓ Correct"
+				status = "Correct"
 				isCorrectBool = true
 			}
 
