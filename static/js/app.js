@@ -1347,22 +1347,9 @@ function showChangeRoleForm(userId, username, currentRole) {
                     <option value="user" ${currentRole === 'user' ? 'selected' : ''}>User (Awareness Training Only)</option>
                 </select>
             </div>
-            <div class="info-box" style="background: #e3f2fd; padding: 15px; margin: 15px 0; border-radius: 5px;">
-                <h4 style="margin-top: 0;">Role Permissions (Least Privilege Principle)</h4>
-                <p><strong>Admin:</strong></p>
-                <ul>
-                    <li>Full access to phishing simulation campaigns</li>
-                    <li>Create and manage assessments</li>
-                    <li>Manage users</li>
-                    <li>View all statistics and reports</li>
-                </ul>
-                <p><strong>User:</strong></p>
-                <ul>
-                    <li>Access to awareness training only</li>
-                    <li>Take published assessments</li>
-                    <li>View own results</li>
-                    <li>NO access to phishing simulation or admin features</li>
-                </ul>
+            <div class="info-box" style="background: #f5f5f5; padding: 15px; margin: 15px 0; border-radius: 5px;">
+                <p style="margin: 0 0 10px 0;"><strong>Admin:</strong> Full access to phishing simulations, assessments, user management, and all reports</p>
+                <p style="margin: 0;"><strong>User:</strong> Access to awareness training, assessments, and own results only</p>
             </div>
             <button type="submit" class="btn btn-primary">Update Role</button>
         </form>
@@ -1447,17 +1434,9 @@ function showUserForm() {
                     <option value="admin">Admin (Full Access)</option>
                 </select>
             </div>
-            <div class="info-box" style="background: #fff3cd; padding: 15px; margin: 15px 0; border-radius: 5px; border-left: 4px solid #ffc107;">
-                <h4 style="margin-top: 0;">🔒 Least Privilege Principle</h4>
-                <p>By default, create users with <strong>"User"</strong> role. Only assign <strong>"Admin"</strong> role when necessary.</p>
-                <p><strong>User role grants:</strong></p>
-                <ul>
-                    <li>✅ Access to security awareness training</li>
-                    <li>✅ Ability to take assessments</li>
-                    <li>✅ View own results and performance</li>
-                    <li>❌ NO access to phishing simulation features</li>
-                    <li>❌ NO admin capabilities</li>
-                </ul>
+            <div class="info-box" style="background: #f5f5f5; padding: 15px; margin: 15px 0; border-radius: 5px;">
+                <p style="margin: 0 0 10px 0;"><strong>Admin:</strong> Full access to phishing simulations, assessments, user management, and all reports</p>
+                <p style="margin: 0;"><strong>User:</strong> Access to awareness training, assessments, and own results only</p>
             </div>
             <button type="submit" class="btn btn-primary">Create User</button>
         </form>
