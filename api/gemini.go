@@ -64,10 +64,24 @@ Additional requirements: %s
 Please generate a realistic phishing email template with the following structure:
 1. A compelling subject line
 2. HTML email body that looks professional and convincing
-3. A call-to-action that would lead to a landing page
+3. A call-to-action button/link using {{.URL}} that would lead to a landing page
+4. A "Report as phishing" link using {{.ReportURL}} at the bottom of the email
 
 The email should use common phishing tactics like urgency, authority, or curiosity.
-Include placeholders for: {{.FirstName}}, {{.LastName}}, {{.Email}}, {{.TrackingURL}}
+
+IMPORTANT - You MUST include these placeholders:
+- {{.FirstName}} - Recipient's first name
+- {{.LastName}} - Recipient's last name
+- {{.Email}} - Recipient's email address
+- {{.URL}} - Main phishing link (use this for buttons, "Click here", "View now", etc.)
+- {{.ReportURL}} - Report phishing link (add as "Report as phishing" or "Not you? Click here" at the bottom)
+
+Example format:
+<h2>You've been tagged in a photo!</h2>
+<p>Hi {{.FirstName}},</p>
+<p>Click below to view:</p>
+<p><a href="{{.URL}}">View Photo</a></p>
+<p><a href="{{.ReportURL}}">Report as phishing</a></p>
 
 Respond in JSON format:
 {
@@ -217,10 +231,24 @@ Tone: Professional and convincing
 Please generate a realistic phishing email template with the following structure:
 1. A compelling subject line
 2. HTML email body that looks professional and convincing
-3. A call-to-action that would lead to a landing page
+3. A call-to-action button/link using {{.URL}} that would lead to a landing page
+4. A "Report as phishing" link using {{.ReportURL}} at the bottom of the email
 
 The email should use common phishing tactics like urgency, authority, or curiosity.
-Include placeholders for: {{.FirstName}}, {{.LastName}}, {{.Email}}, {{.TrackingURL}}
+
+IMPORTANT - You MUST include these placeholders:
+- {{.FirstName}} - Recipient's first name
+- {{.LastName}} - Recipient's last name
+- {{.Email}} - Recipient's email address
+- {{.URL}} - Main phishing link (use this for buttons, "Click here", "View now", etc.)
+- {{.ReportURL}} - Report phishing link (add as "Report as phishing" or "Not you? Click here" at the bottom)
+
+Example format:
+<h2>You've been tagged in a photo!</h2>
+<p>Hi {{.FirstName}},</p>
+<p>Click below to view:</p>
+<p><a href="{{.URL}}">View Photo</a></p>
+<p><a href="{{.ReportURL}}">Report as phishing</a></p>
 
 Respond in JSON format:
 {

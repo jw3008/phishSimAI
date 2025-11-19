@@ -2,7 +2,9 @@
 const app = {
     user: null,
     userRole: null,
-    currentView: 'campaigns'
+    currentView: 'campaigns',
+    currentEmailAnalysis: null,
+    currentEmailText: null
 };
 
 // API Helper
@@ -246,9 +248,6 @@ async function viewCampaign(id) {
                 <button onclick="viewCredentials(${id})" class="btn btn-primary">View Harvested Credentials</button>
             ` : ''}
             <button onclick="downloadCredentialsPDF(${id})" class="btn btn-secondary">Download Campaign Report</button>
-            ${campaign.status === 'launched' ? `
-                <button onclick="endCampaign(${id})" class="btn btn-danger">End Campaign Early</button>
-            ` : ''}
         </div>
     `;
 
@@ -316,7 +315,7 @@ document.getElementById('new-campaign-btn').addEventListener('click', async () =
                 </select>
             </div>
             <div class="form-group">
-                <label>Sending Profile</label>
+                <label>Sending Profile (Phishing Coordinator)</label>
                 <select name="smtp_id" required>
                     <option value="">Select profile...</option>
                     ${smtp.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
@@ -696,7 +695,7 @@ async function deleteSMTP(id) {
 }
 
 function showSMTPForm(smtp = null) {
-    showModal(smtp ? 'Edit Sending Profile' : 'New Sending Profile', `
+    showModal(smtp ? 'Edit Sending Profile (Phishing Coordinator)' : 'New Sending Profile (Phishing Coordinator)', `
         <form id="smtp-form">
             <div class="form-group">
                 <label>Profile Name</label>
@@ -717,12 +716,6 @@ function showSMTPForm(smtp = null) {
             <div class="form-group">
                 <label>From Address</label>
                 <input type="email" name="from_address" value="${smtp?.from_address || ''}" required>
-            </div>
-            <div class="form-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" name="ignore_cert_errors" id="ignore_cert" ${smtp?.ignore_cert_errors ? 'checked' : ''}>
-                    <label for="ignore_cert">Ignore Certificate Errors</label>
-                </div>
             </div>
             <button type="submit" class="btn btn-primary">${smtp ? 'Update' : 'Create'} Profile</button>
         </form>
@@ -1915,6 +1908,7 @@ document.getElementById('analyze-email-btn')?.addEventListener('click', async ()
         loadingDiv.style.display = 'none';
 
         if (result && result.success) {
+            app.currentEmailText = emailText;
             displayAnalysisResult(result.result);
             resultDiv.style.display = 'block';
         } else if (result && result.error) {
@@ -1986,6 +1980,9 @@ function displayAnalysisResult(result) {
     const indicatorsDiv = document.getElementById('result-indicators');
     const explanationDiv = document.getElementById('result-explanation');
     const recommendationsDiv = document.getElementById('result-recommendations');
+
+    // Store the analysis result
+    app.currentEmailAnalysis = result;
 
     // Determine the verdict and color
     const isPhishing = result.is_phishing;
@@ -2084,9 +2081,16 @@ function displayAnalysisResult(result) {
                     `).join('')}
                 </ul>
             </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="downloadEmailAnalysisPDF()">📄 Download Analysis PDF</button>
+            </div>
         `;
     } else {
-        recommendationsDiv.innerHTML = '';
+        recommendationsDiv.innerHTML = `
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="downloadEmailAnalysisPDF()">📄 Download Analysis PDF</button>
+            </div>
+        `;
     }
 }
 
@@ -2139,6 +2143,7 @@ function setupEmailAnalyzerAwarenessHandlers() {
                 loadingDiv.style.display = 'none';
 
                 if (result && result.success) {
+                    app.currentEmailText = emailText;
                     displayAnalysisResultAwareness(result.result);
                     resultDiv.style.display = 'block';
                     // Scroll to results
@@ -2180,6 +2185,9 @@ function displayAnalysisResultAwareness(result) {
     const indicatorsDiv = document.getElementById('result-indicators-awareness');
     const explanationDiv = document.getElementById('result-explanation-awareness');
     const recommendationsDiv = document.getElementById('result-recommendations-awareness');
+
+    // Store the analysis result
+    app.currentEmailAnalysis = result;
 
     // Determine the verdict and color
     const isPhishing = result.is_phishing;
@@ -2278,9 +2286,71 @@ function displayAnalysisResultAwareness(result) {
                     `).join('')}
                 </ul>
             </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="downloadEmailAnalysisPDF()" style="background: #667eea; border: none;">📄 Download Analysis PDF</button>
+            </div>
         `;
     } else {
-        recommendationsDiv.innerHTML = '';
+        recommendationsDiv.innerHTML = `
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="downloadEmailAnalysisPDF()" style="background: #667eea; border: none;">📄 Download Analysis PDF</button>
+            </div>
+        `;
+    }
+}
+
+// Download Email Analysis PDF
+async function downloadEmailAnalysisPDF() {
+    if (!app.currentEmailAnalysis || !app.currentEmailText) {
+        alert('No analysis data available to download');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/analyze-email/pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                email_text: app.currentEmailText,
+                is_phishing: app.currentEmailAnalysis.is_phishing,
+                confidence_score: app.currentEmailAnalysis.confidence_score || 0,
+                risk_level: app.currentEmailAnalysis.risk_level || 'unknown',
+                indicators: app.currentEmailAnalysis.indicators || [],
+                explanation: app.currentEmailAnalysis.explanation || '',
+                recommendations: app.currentEmailAnalysis.recommendations || []
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to generate PDF');
+        }
+
+        // Create a blob from the response
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `email_analysis_${new Date().toISOString().slice(0, 10)}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        // Show success message
+        const messageDiv = document.createElement('div');
+        messageDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px 20px; border-radius: 5px; z-index: 10000; box-shadow: 0 2px 5px rgba(0,0,0,0.2);';
+        messageDiv.textContent = '✓ PDF downloaded successfully!';
+        document.body.appendChild(messageDiv);
+
+        setTimeout(() => {
+            document.body.removeChild(messageDiv);
+        }, 3000);
+    } catch (error) {
+        console.error('Error downloading PDF:', error);
+        alert('Failed to download PDF: ' + error.message);
     }
 }
 
