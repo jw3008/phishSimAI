@@ -305,25 +305,22 @@ func TrackReportPhishing(w http.ResponseWriter, r *http.Request) {
 		log.Printf("TrackReportPhishing: Error finding campaign target: %v", err)
 	}
 
-	// Return a user-friendly HTML page
+	// Return a simple response
 	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte(`
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Thank You for Reporting</title>
+	<title>Report Recorded</title>
 	<style>
 		body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
 		.container { background: white; padding: 40px; border-radius: 8px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-		h1 { color: #28a745; }
 		p { color: #666; line-height: 1.6; }
 	</style>
 </head>
 <body>
 	<div class="container">
-		<h1>✓ Thank You!</h1>
-		<p>Your report has been recorded successfully.</p>
-		<p>Thank you for being vigilant about suspicious emails and helping us improve security awareness.</p>
+		<p>Your report has been recorded.</p>
 	</div>
 </body>
 </html>
