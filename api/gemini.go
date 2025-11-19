@@ -64,10 +64,25 @@ Additional requirements: %s
 Please generate a realistic phishing email template with the following structure:
 1. A compelling subject line
 2. HTML email body that looks professional and convincing
-3. A call-to-action that would lead to a landing page
+3. A call-to-action button/link that leads to the landing page
+4. A "Report as phishing" link at the bottom
 
 The email should use common phishing tactics like urgency, authority, or curiosity.
-Include placeholders for: {{.FirstName}}, {{.LastName}}, {{.Email}}, {{.TrackingURL}}
+
+CRITICAL REQUIREMENTS - You MUST include these placeholders:
+- {{.FirstName}} - Recipient's first name (personalization)
+- {{.LastName}} - Recipient's last name (optional)
+- {{.Email}} - Recipient's email address (optional)
+- {{.URL}} - Main phishing link (REQUIRED - use this for all clickable buttons/links in the email body)
+- {{.ReportURL}} - Report phishing link (REQUIRED - must be included at the bottom as "Report as phishing" or similar)
+
+Example format that you MUST follow:
+<h2>Someone tagged you in a photo!</h2>
+<p>Hi {{.FirstName}},</p>
+<p>You've been tagged in a photo on TikTok. Click below to view:</p>
+<p><a href="{{.URL}}">View Photo</a></p>
+<p>If this wasn't you, please secure your account.</p>
+<p><a href="{{.ReportURL}}">Report as phishing</a></p>
 
 Respond in JSON format:
 {
@@ -217,10 +232,25 @@ Tone: Professional and convincing
 Please generate a realistic phishing email template with the following structure:
 1. A compelling subject line
 2. HTML email body that looks professional and convincing
-3. A call-to-action that would lead to a landing page
+3. A call-to-action button/link that leads to the landing page
+4. A "Report as phishing" link at the bottom
 
 The email should use common phishing tactics like urgency, authority, or curiosity.
-Include placeholders for: {{.FirstName}}, {{.LastName}}, {{.Email}}, {{.TrackingURL}}
+
+CRITICAL REQUIREMENTS - You MUST include these placeholders:
+- {{.FirstName}} - Recipient's first name (personalization)
+- {{.LastName}} - Recipient's last name (optional)
+- {{.Email}} - Recipient's email address (optional)
+- {{.URL}} - Main phishing link (REQUIRED - use this for all clickable buttons/links in the email body)
+- {{.ReportURL}} - Report phishing link (REQUIRED - must be included at the bottom as "Report as phishing" or similar)
+
+Example format that you MUST follow:
+<h2>Someone tagged you in a photo!</h2>
+<p>Hi {{.FirstName}},</p>
+<p>You've been tagged in a photo on TikTok. Click below to view:</p>
+<p><a href="{{.URL}}">View Photo</a></p>
+<p>If this wasn't you, please secure your account.</p>
+<p><a href="{{.ReportURL}}">Report as phishing</a></p>
 
 Respond in JSON format:
 {
