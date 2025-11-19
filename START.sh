@@ -26,7 +26,7 @@ echo ""
 # Check if we're in the right directory
 if [ ! -f "main.go" ]; then
     echo "❌ main.go not found!"
-    echo "Please run this script from the phishSimAI directory"
+    echo "Please run this script from the clariphish directory"
     exit 1
 fi
 

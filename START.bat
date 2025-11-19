@@ -26,7 +26,7 @@ echo.
 REM Check if we're in the right directory
 if not exist "main.go" (
     echo X main.go not found!
-    echo Please run this script from the phishSimAI directory
+    echo Please run this script from the clariphish directory
     echo.
     pause
     exit /b 1

@@ -1,9 +1,9 @@
 @echo off
-title PhishSimAI - Phishing Simulation Platform
+title clariphish - Phishing Simulation Platform
 color 0A
 
 echo ========================================
-echo   PhishSimAI - Starting Server
+echo   clariphish - Starting Server
 echo ========================================
 echo.
 echo Server will be available at:
@@ -21,4 +21,4 @@ echo Press Ctrl+C to stop the server
 echo.
 
 cd /d "%~dp0"
-phishSimAI.exe
+clariphish.exe
