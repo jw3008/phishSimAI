@@ -715,12 +715,6 @@ function showSMTPForm(smtp = null) {
                 <label>From Address</label>
                 <input type="email" name="from_address" value="${smtp?.from_address || ''}" required>
             </div>
-            <div class="form-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" name="ignore_cert_errors" id="ignore_cert" ${smtp?.ignore_cert_errors ? 'checked' : ''}>
-                    <label for="ignore_cert">Ignore Certificate Errors</label>
-                </div>
-            </div>
             <button type="submit" class="btn btn-primary">${smtp ? 'Update' : 'Create'} Profile</button>
         </form>
     `);
@@ -733,8 +727,7 @@ function showSMTPForm(smtp = null) {
             host: formData.get('host'),
             username: formData.get('username'),
             password: formData.get('password'),
-            from_address: formData.get('from_address'),
-            ignore_cert_errors: formData.get('ignore_cert_errors') === 'on'
+            from_address: formData.get('from_address')
         };
 
         if (smtp) {
