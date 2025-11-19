@@ -315,7 +315,7 @@ document.getElementById('new-campaign-btn').addEventListener('click', async () =
                 </select>
             </div>
             <div class="form-group">
-                <label>Sending Profile (Phishing Coordinator)</label>
+                <label>Sending Profile</label>
                 <select name="smtp_id" required>
                     <option value="">Select profile...</option>
                     ${smtp.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
@@ -695,7 +695,7 @@ async function deleteSMTP(id) {
 }
 
 function showSMTPForm(smtp = null) {
-    showModal(smtp ? 'Edit Sending Profile (Phishing Coordinator)' : 'New Sending Profile (Phishing Coordinator)', `
+    showModal(smtp ? 'Edit Sending Profile' : 'New Sending Profile', `
         <form id="smtp-form">
             <div class="form-group">
                 <label>Profile Name</label>
