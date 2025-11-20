@@ -2,7 +2,9 @@
 const app = {
     user: null,
     userRole: null,
-    currentView: 'campaigns'
+    currentView: 'campaigns',
+    currentEmailAnalysis: null,
+    currentEmailText: null
 };
 
 // API Helper
@@ -1905,7 +1907,7 @@ document.getElementById('analyze-email-btn')?.addEventListener('click', async ()
         loadingDiv.style.display = 'none';
 
         if (result && result.success) {
-            displayAnalysisResult(result.result);
+            displayAnalysisResult(result.result, emailText);
             resultDiv.style.display = 'block';
         } else if (result && result.error) {
             // Check for specific API errors
@@ -1971,7 +1973,11 @@ document.getElementById('clear-email-btn')?.addEventListener('click', () => {
     document.getElementById('analysis-result').style.display = 'none';
 });
 
-function displayAnalysisResult(result) {
+function displayAnalysisResult(result, emailText) {
+    // Store analysis data globally for PDF generation
+    app.currentEmailAnalysis = result;
+    app.currentEmailText = emailText;
+
     const summaryDiv = document.getElementById('result-summary');
     const indicatorsDiv = document.getElementById('result-indicators');
     const explanationDiv = document.getElementById('result-explanation');
@@ -2074,9 +2080,77 @@ function displayAnalysisResult(result) {
                     `).join('')}
                 </ul>
             </div>
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-primary" onclick="downloadEmailAnalysisPDF()" style="background: #667eea; border: none; padding: 12px 30px; font-size: 16px;">
+                    📄 Download PDF Report
+                </button>
+            </div>
         `;
     } else {
-        recommendationsDiv.innerHTML = '';
+        recommendationsDiv.innerHTML = `
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-primary" onclick="downloadEmailAnalysisPDF()" style="background: #667eea; border: none; padding: 12px 30px; font-size: 16px;">
+                    📄 Download PDF Report
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Download Email Analysis PDF
+async function downloadEmailAnalysisPDF() {
+    if (!app.currentEmailAnalysis || !app.currentEmailText) {
+        alert('No email analysis data available. Please analyze an email first.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/analyze-email/pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                email_text: app.currentEmailText,
+                is_phishing: app.currentEmailAnalysis.is_phishing,
+                confidence_score: app.currentEmailAnalysis.confidence_score || 0,
+                risk_level: app.currentEmailAnalysis.risk_level || 'unknown',
+                indicators: app.currentEmailAnalysis.indicators || [],
+                explanation: app.currentEmailAnalysis.explanation || '',
+                recommendations: app.currentEmailAnalysis.recommendations || []
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to generate PDF');
+        }
+
+        // Get the PDF blob
+        const blob = await response.blob();
+
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+
+        // Generate filename with timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        a.download = `email_analysis_${timestamp}.pdf`;
+
+        document.body.appendChild(a);
+        a.click();
+
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Show success message
+        showToast('PDF downloaded successfully!', 'success');
+    } catch (error) {
+        console.error('Error downloading PDF:', error);
+        alert('Failed to download PDF report. Please try again.');
     }
 }
 
@@ -2129,7 +2203,7 @@ function setupEmailAnalyzerAwarenessHandlers() {
                 loadingDiv.style.display = 'none';
 
                 if (result && result.success) {
-                    displayAnalysisResultAwareness(result.result);
+                    displayAnalysisResultAwareness(result.result, emailText);
                     resultDiv.style.display = 'block';
                     // Scroll to results
                     resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2165,7 +2239,11 @@ function setupEmailAnalyzerAwarenessHandlers() {
     }
 }
 
-function displayAnalysisResultAwareness(result) {
+function displayAnalysisResultAwareness(result, emailText) {
+    // Store analysis data globally for PDF generation
+    app.currentEmailAnalysis = result;
+    app.currentEmailText = emailText;
+
     const summaryDiv = document.getElementById('result-summary-awareness');
     const indicatorsDiv = document.getElementById('result-indicators-awareness');
     const explanationDiv = document.getElementById('result-explanation-awareness');
@@ -2268,9 +2346,20 @@ function displayAnalysisResultAwareness(result) {
                     `).join('')}
                 </ul>
             </div>
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-primary" onclick="downloadEmailAnalysisPDF()" style="background: #667eea; border: none; padding: 12px 30px; font-size: 16px; cursor: pointer; border-radius: 5px; color: white;">
+                    📄 Download PDF Report
+                </button>
+            </div>
         `;
     } else {
-        recommendationsDiv.innerHTML = '';
+        recommendationsDiv.innerHTML = `
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-primary" onclick="downloadEmailAnalysisPDF()" style="background: #667eea; border: none; padding: 12px 30px; font-size: 16px; cursor: pointer; border-radius: 5px; color: white;">
+                    📄 Download PDF Report
+                </button>
+            </div>
+        `;
     }
 }
 
