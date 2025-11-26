@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>clariphish - Phishing Simulation Platform</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Page -->
+        <div id="login-page" class="page active">
+            <div class="login-container">
+                <div class="login-box">
+                    <h1>clariphish</h1>
+                    <p class="subtitle">Phishing Simulation Platform</p>
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                        <div id="login-error" class="error"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard-page" class="page">
+            <nav class="navbar">
+                <div class="nav-brand">clariphish</div>
+                <ul class="nav-menu">
+                    <li class="admin-only"><a href="#" data-page="campaigns" class="nav-link active">Campaigns</a></li>
+                    <li class="admin-only"><a href="#" data-page="templates" class="nav-link">Email Templates</a></li>
+                    <li class="admin-only"><a href="#" data-page="pages" class="nav-link">Landing Pages</a></li>
+                    <li class="admin-only"><a href="#" data-page="groups" class="nav-link">User Groups</a></li>
+                    <li class="admin-only"><a href="#" data-page="smtp" class="nav-link">Sending Profiles</a></li>
+                    <li class="admin-only"><a href="#" data-page="assessments" class="nav-link">Assessments</a></li>
+                    <li class="admin-only"><a href="#" data-page="user-management" class="nav-link">User Management</a></li>
+                    <li class="admin-only"><a href="#" data-page="settings" class="nav-link">Settings</a></li>
+                    <li class="user-only"><a href="#" data-page="awareness" class="nav-link">Awareness Training</a></li>
+                    <li class="user-only"><a href="#" data-page="my-results" class="nav-link">My Results</a></li>
+                    <li class="user-only"><a href="#" data-page="knowledge-base" class="nav-link">Knowledge Base</a></li>
+                    <li class="user-only"><a href="#" data-page="user-settings" class="nav-link">My Settings</a></li>
+                </ul>
+                <div class="nav-user">
+                    <span id="current-user"></span>
+                    <button id="logout-btn" class="btn btn-secondary">Logout</button>
+                </div>
+            </nav>
+
+            <div class="container">
+                <!-- Campaigns View -->
+                <div id="campaigns-view" class="view active">
+                    <div class="view-header">
+                        <h2>Campaigns</h2>
+                        <button id="new-campaign-btn" class="btn btn-primary">New Campaign</button>
+                    </div>
+                    <div id="campaigns-list"></div>
+                </div>
+
+                <!-- Templates View -->
+                <div id="templates-view" class="view">
+                    <div class="view-header">
+                        <h2>Email Templates</h2>
+                        <button id="new-template-btn" class="btn btn-primary">New Template</button>
+                        <button id="generate-ai-template-btn" class="btn btn-success" style="margin-left: 10px;">🤖 Generate with AI</button>
+                    </div>
+                    <div id="templates-list"></div>
+                </div>
+
+                <!-- Pages View -->
+                <div id="pages-view" class="view">
+                    <div class="view-header">
+                        <h2>Landing Pages</h2>
+                        <button id="new-page-btn" class="btn btn-primary">New Page</button>
+                        <button id="clone-page-btn" class="btn btn-secondary" style="margin-left: 10px;">Clone from URL</button>
+                    </div>
+                    <div id="pages-list"></div>
+                </div>
+
+                <!-- Groups View -->
+                <div id="groups-view" class="view">
+                    <div class="view-header">
+                        <h2>User Groups</h2>
+                        <button id="new-group-btn" class="btn btn-primary">New Group</button>
+                    </div>
+                    <div id="groups-list"></div>
+                </div>
+
+                <!-- SMTP View -->
+                <div id="smtp-view" class="view">
+                    <div class="view-header">
+                        <h2>Sending Profile</h2>
+                        <button id="new-smtp-btn" class="btn btn-primary">New Profile</button>
+                    </div>
+                    <div id="smtp-list"></div>
+                </div>
+
+                <!-- Assessments View (Admin) -->
+                <div id="assessments-view" class="view admin-only">
+                    <div class="view-header">
+                        <h2>Security Awareness Assessments</h2>
+                        <button id="new-assessment-btn" class="btn btn-primary">Create Assessment</button>
+                    </div>
+                    <div id="assessments-list"></div>
+                </div>
+
+                <!-- Awareness Training View (User) -->
+                <div id="awareness-view" class="view user-only">
+                    <div class="view-header">
+                        <h2>Security Awareness Training</h2>
+                        <p>Complete assessments and analyze suspicious emails to improve your security awareness</p>
+                    </div>
+
+                    <!-- Email Analyzer Section (Integrated) -->
+                    <div class="card" style="margin-bottom: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <div style="padding: 20px;">
+                            <h3 style="margin-top: 0; color: white; display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 24px;">🔍</span> Email Phishing Analyzer
+                            </h3>
+                            <p style="margin: 10px 0; color: rgba(255,255,255,0.9);">Paste a suspicious email below to analyze if it's legitimate or a phishing attempt using AI</p>
+
+                            <div style="background: white; border-radius: 8px; padding: 20px; margin-top: 20px;">
+                                <div class="form-group">
+                                    <label for="email-text-awareness" style="color: #333; font-weight: bold;">Email Content</label>
+                                    <textarea id="email-text-awareness" rows="10"
+                                        placeholder="Paste the entire email content here (subject, sender, body, links, etc.)..."
+                                        style="width: 100%; font-family: monospace; padding: 10px; border: 2px solid #ddd; border-radius: 4px; color: #333;"></textarea>
+                                </div>
+                                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                                    <button id="analyze-email-awareness-btn" class="btn btn-primary" style="background: #667eea; border: none;">🔍 Analyze Email</button>
+                                    <button id="clear-email-awareness-btn" class="btn btn-secondary">Clear</button>
+                                </div>
+
+                                <div id="analysis-loading-awareness" style="display: none; margin-top: 20px; text-align: center; color: #333;">
+                                    <p>🤖 Analyzing email with AI... This may take a few moments.</p>
+                                </div>
+
+                                <div id="analysis-result-awareness" style="display: none; margin-top: 20px; color: #333;">
+                                    <h4 style="color: #333;">Analysis Result</h4>
+                                    <div id="result-summary-awareness"></div>
+                                    <div id="result-indicators-awareness" style="margin-top: 15px;"></div>
+                                    <div id="result-explanation-awareness" style="margin-top: 15px;"></div>
+                                    <div id="result-recommendations-awareness" style="margin-top: 15px;"></div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                                <p style="margin: 0; font-size: 14px; color: rgba(255,255,255,0.9);">
+                                    💡 <strong>Tip:</strong> Include the complete email (subject, sender, body, and links) for the most accurate analysis.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cybersecurity Chatbot Section -->
+                    <div class="card" style="margin-top: 30px; margin-bottom: 30px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white;">
+                        <div style="padding: 20px;">
+                            <h3 style="margin-top: 0; color: white; display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 24px;">💬</span> Ask Our Security Expert AI
+                            </h3>
+                            <p style="margin: 10px 0; color: rgba(255,255,255,0.9);">Have questions about cybersecurity, phishing, or online safety? Ask our AI expert!</p>
+
+                            <div style="background: white; border-radius: 8px; padding: 20px; margin-top: 20px;">
+                                <div class="chat-container-inline" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 15px; background: #f9f9f9; margin-bottom: 15px; min-height: 200px;">
+                                    <div id="inline-chat-messages" style="color: #333;"></div>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="text" id="inline-chat-input" placeholder="Ask about phishing, passwords, security..." style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 5px; color: #333; font-size: 14px;" />
+                                    <button id="inline-chat-send-btn" class="btn btn-primary" style="background: #4CAF50; border: none; padding: 12px 24px;">Send</button>
+                                </div>
+                                <div style="margin-top: 10px;">
+                                    <p style="margin: 5px 0; font-size: 12px; color: #666; font-style: italic;">
+                                        💡 Example: "What are common signs of phishing?" or "How do I create a strong password?"
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assessment List -->
+                    <h3 style="margin-top: 30px; margin-bottom: 15px;">📝 Available Assessments</h3>
+                    <div id="awareness-list"></div>
+                </div>
+
+                <!-- My Results View (User) -->
+                <div id="my-results-view" class="view user-only">
+                    <div class="view-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h2>My Assessment Results</h2>
+                            <button class="btn btn-secondary" onclick="showView('awareness'); loadAwarenessAssessments();">
+                                ← Back to Training
+                            </button>
+                        </div>
+                    </div>
+                    <div id="my-results-list"></div>
+                </div>
+
+                <!-- User Management View (Admin) -->
+                <div id="user-management-view" class="view admin-only">
+                    <div class="view-header">
+                        <h2>User Management</h2>
+                        <button id="new-user-btn" class="btn btn-primary">Add User</button>
+                    </div>
+                    <div id="users-list"></div>
+                </div>
+
+                <!-- Knowledge Base View (User) -->
+                <div id="knowledge-base-view" class="view user-only">
+                    <div class="view-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <h2 style="margin: 0;">Security Knowledge Base Chatbot</h2>
+                                <p style="margin: 5px 0 0 0;">Ask me anything about cybersecurity, phishing, or security best practices</p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="showView('awareness'); loadAwarenessAssessments();">
+                                ← Back to Training
+                            </button>
+                        </div>
+                    </div>
+                    <div class="chat-container">
+                        <div id="chat-messages" class="chat-messages"></div>
+                        <div class="chat-input-container">
+                            <input type="text" id="chat-input" class="chat-input" placeholder="Ask a question about security..." />
+                            <button id="chat-send-btn" class="btn btn-primary">Send</button>
+                        </div>
+                        <div class="info-box" style="margin-top: 20px;">
+                            <h4>💡 Example Questions</h4>
+                            <ul>
+                                <li>What are common signs of a phishing email?</li>
+                                <li>How can I protect my passwords?</li>
+                                <li>What is multi-factor authentication?</li>
+                                <li>How do I report a suspicious email?</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Email Analyzer View (All Users) - DEPRECATED, now integrated in Awareness page -->
+                <div id="email-analyzer-view" class="view" style="display: none;">
+                    <div class="view-header">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                            <button class="btn btn-secondary" onclick="history.back()" style="display: flex; align-items: center; gap: 5px;">
+                                <span>←</span> Back
+                            </button>
+                            <div>
+                                <h2 style="margin: 0;">Email Phishing Analyzer</h2>
+                                <p style="margin: 5px 0 0 0;">Paste an email to analyze if it's legitimate or a phishing attempt</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="form-group">
+                            <label for="email-text-input">Email Content</label>
+                            <textarea id="email-text-input" rows="15"
+                                placeholder="Paste the entire email content here (subject, sender, body, links, etc.)..."
+                                style="width: 100%; font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                        </div>
+                        <button id="analyze-email-btn" class="btn btn-primary">🔍 Analyze Email</button>
+                        <button id="clear-email-btn" class="btn btn-secondary" style="margin-left: 10px;">Clear</button>
+
+                        <div id="analysis-loading" style="display: none; margin-top: 20px; text-align: center;">
+                            <p>🤖 Analyzing email with AI...</p>
+                        </div>
+
+                        <div id="analysis-result" style="display: none; margin-top: 30px;">
+                            <h3>Analysis Result</h3>
+                            <div id="result-summary" class="result-card"></div>
+                            <div id="result-indicators" style="margin-top: 20px;"></div>
+                            <div id="result-explanation" style="margin-top: 20px;"></div>
+                            <div id="result-recommendations" style="margin-top: 20px;"></div>
+                        </div>
+
+                        <div class="info-box" style="margin-top: 30px;">
+                            <h4>💡 Tips for Using the Email Analyzer</h4>
+                            <ul>
+                                <li>Include the full email: subject line, sender, body, and any links</li>
+                                <li>The more complete the email, the better the analysis</li>
+                                <li>The AI looks for common phishing indicators like urgency, suspicious links, and impersonation</li>
+                                <li>This tool is for educational purposes - always verify suspicious emails with your IT team</li>
+                            </ul>
+                        </div>
+
+                        <div style="margin-top: 30px; padding: 20px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+                            <h4 style="margin-top: 0;">Quick Navigation</h4>
+                            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                                <button class="btn btn-secondary user-only" onclick="showView('awareness'); loadAwarenessAssessments();">
+                                    📝 Awareness Training
+                                </button>
+                                <button class="btn btn-secondary user-only" onclick="showView('my-results'); loadMyResults();">
+                                    📊 My Results
+                                </button>
+                                <button class="btn btn-secondary user-only" onclick="showView('knowledge-base'); initKnowledgeBase();">
+                                    📚 Knowledge Base
+                                </button>
+                                <button class="btn btn-secondary admin-only" onclick="showView('campaigns'); loadCampaigns();">
+                                    🎯 Campaigns
+                                </button>
+                                <button class="btn btn-secondary admin-only" onclick="showView('assessments'); loadAssessments();">
+                                    📋 Assessments
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Settings View (User) -->
+                <div id="user-settings-view" class="view user-only">
+                    <div class="view-header">
+                        <h2>Settings</h2>
+                        <p>Configure your API key for AI-powered features</p>
+                    </div>
+                    <div class="card">
+                        <h3>Google AI (Gemini) API Configuration</h3>
+                        <p style="color: #666; margin-bottom: 20px;">
+                            Configure your Google AI Studio API key for AI-powered template generation and knowledge base chatbot.
+                            <br>Get your free API key from: <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #667eea;">https://aistudio.google.com/app/apikey</a>
+                        </p>
+                        <div class="form-group">
+                            <label for="user-api-key-input">Gemini API Key</label>
+                            <input type="password" id="user-api-key-input" placeholder="Enter your Gemini API key from Google AI Studio" style="width: 100%; max-width: 600px;">
+                            <p style="font-size: 12px; color: #888; margin-top: 5px;">
+                                This key is stored securely and used for AI template generation and knowledge base features.
+                            </p>
+                        </div>
+                        <button id="save-api-key-btn" class="btn btn-primary" style="margin-top: 10px;">Save API Key</button>
+                        <button id="test-api-key-btn" class="btn btn-secondary" style="margin-top: 10px; margin-left: 10px;">Test Connection</button>
+                        <div id="user-settings-message" style="margin-top: 15px;"></div>
+                    </div>
+                </div>
+
+                <!-- Settings View (Admin) -->
+                <div id="settings-view" class="view admin-only">
+                    <div class="view-header">
+                        <h2>Settings</h2>
+                        <p>Configure system settings and API integrations</p>
+                    </div>
+                    <div class="card">
+                        <h3>Google AI (Gemini) API Configuration</h3>
+                        <p style="color: #666; margin-bottom: 20px;">
+                            Configure your Google AI Studio API key for AI-powered template generation and knowledge base chatbot.
+                            <br>Get your free API key from: <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #667eea;">https://aistudio.google.com/app/apikey</a>
+                        </p>
+                        <div class="form-group">
+                            <label for="gemini-api-key-input">Gemini API Key</label>
+                            <input type="password" id="gemini-api-key-input" placeholder="Enter your Gemini API key from Google AI Studio" style="width: 100%; max-width: 600px;">
+                            <p style="font-size: 12px; color: #888; margin-top: 5px;">
+                                This key is stored securely and used for AI template generation and knowledge base features.
+                            </p>
+                        </div>
+                        <button id="save-gemini-api-key-btn" class="btn btn-primary" style="margin-top: 10px;">Save API Key</button>
+                        <button id="test-gemini-api-key-btn" class="btn btn-secondary" style="margin-top: 10px; margin-left: 10px;">Test Connection</button>
+                        <div id="settings-message" style="margin-top: 15px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

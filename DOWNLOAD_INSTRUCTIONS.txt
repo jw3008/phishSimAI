@@ -1,0 +1,95 @@
+================================================================================
+DOWNLOAD INSTRUCTIONS - clariphish Phishing Simulation Platform
+================================================================================
+
+Option 1: Download from GitHub
+-------------------------------
+1. Go to: https://github.com/jw3008/phishSimAI
+2. Click branch dropdown → Select: claude/phishing-simulation-roles-011CUPi2RZxZdsbPDBCLkPNh
+3. Click green "Code" button
+4. Click "Download ZIP"
+5. Extract the ZIP file
+6. Follow instructions in QUICK_START.md
+
+Option 2: Use Git (if you install it)
+--------------------------------------
+git clone https://github.com/jw3008/phishSimAI.git
+cd phishSimAI
+git checkout claude/phishing-simulation-roles-011CUPi2RZxZdsbPDBCLkPNh
+
+Option 3: Copy from Server (if you have access)
+------------------------------------------------
+If you have SCP access to this server:
+
+scp user@server:/home/user/phishSimAI-ready-to-run.tar.gz .
+tar -xzf phishSimAI-ready-to-run.tar.gz
+cd phishSimAI
+
+Option 4: Manual File Creation
+-------------------------------
+If you can't download, I can provide the contents of each file
+and you can create them manually on your computer.
+
+================================================================================
+QUICK START (after getting files)
+================================================================================
+
+Windows:
+--------
+1. Double-click START.bat
+2. Open browser to http://localhost:3333
+3. Login: admin / admin
+
+Mac/Linux:
+----------
+1. Open Terminal in the phishSimAI folder
+2. Run: chmod +x START.sh
+3. Run: ./START.sh
+4. Open browser to http://localhost:3333
+5. Login: admin / admin
+
+Manual Start:
+-------------
+1. Open Terminal/Command Prompt in phishSimAI folder
+2. Run: go mod download
+3. Run: go run main.go
+4. Open browser to http://localhost:3333
+5. Login: admin / admin
+
+================================================================================
+SYSTEM REQUIREMENTS
+================================================================================
+
+Required:
+- Go 1.21 or higher (download from https://go.dev/dl/)
+- 100 MB free disk space
+- Modern web browser (Chrome, Firefox, Safari, Edge)
+
+Optional:
+- Gemini API key (for AI template generation)
+
+================================================================================
+WHAT YOU'LL GET
+================================================================================
+
+Complete phishing simulation platform with:
+✅ Role-based access control (Admin & User)
+✅ Phishing campaign management
+✅ Security awareness MCQ assessments
+✅ User progress tracking
+✅ Detailed reporting
+✅ Gemini AI integration
+
+See FEATURES.md for complete documentation.
+
+================================================================================
+SUPPORT
+================================================================================
+
+If you encounter issues:
+1. Check QUICK_START.md for troubleshooting
+2. Make sure Go is installed: go version
+3. Try deleting clariphish.db and running again
+4. Check that port 3333 is available
+
+================================================================================
