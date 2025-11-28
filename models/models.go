@@ -5,6 +5,7 @@ import "time"
 type User struct {
 	ID           int       `json:"id"`
 	Username     string    `json:"username"`
+	Email        string    `json:"email"`
 	PasswordHash string    `json:"-"`
 	APIKey       string    `json:"api_key,omitempty"`
 	Role         string    `json:"role"`
@@ -129,15 +130,19 @@ type SMTP struct {
 }
 
 type Assessment struct {
-	ID          int        `json:"id"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	Deadline    *time.Time `json:"deadline,omitempty"`
-	IsPublished bool       `json:"is_published"`
-	CreatedBy   int        `json:"created_by"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	Questions   []Question `json:"questions,omitempty"`
+	ID           int        `json:"id"`
+	Title        string     `json:"title"`
+	Description  string     `json:"description"`
+	Deadline     *time.Time `json:"deadline,omitempty"`
+	IsPublished  bool       `json:"is_published"`
+	IsDynamic    bool       `json:"is_dynamic"`
+	BehaviorType string     `json:"behavior_type,omitempty"`
+	TargetEmail  string     `json:"target_email,omitempty"`
+	CampaignID   int        `json:"campaign_id,omitempty"`
+	CreatedBy    int        `json:"created_by"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	Questions    []Question `json:"questions,omitempty"`
 }
 
 type Question struct {

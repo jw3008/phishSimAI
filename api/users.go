@@ -17,7 +17,7 @@ import (
 // GetUsers returns all users (admin only)
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.DB.Query(`
-		SELECT id, username, role, created_at
+		SELECT id, username, COALESCE(email, '') as email, role, created_at
 		FROM users
 		ORDER BY created_at DESC
 	`)
@@ -30,7 +30,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	users := []models.User{}
 	for rows.Next() {
 		var u models.User
-		err := rows.Scan(&u.ID, &u.Username, &u.Role, &u.CreatedAt)
+		err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -44,6 +44,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 func CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 		Role     string `json:"role"`
 	}
@@ -56,6 +57,11 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Validate input
 	if req.Username == "" {
 		respondError(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+
+	if req.Email == "" {
+		respondError(w, "Email is required", http.StatusBadRequest)
 		return
 	}
 
@@ -83,6 +89,13 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if email already exists
+	err = db.DB.QueryRow("SELECT id FROM users WHERE email = ?", req.Email).Scan(&existingID)
+	if err == nil {
+		respondError(w, "Email already exists", http.StatusConflict)
+		return
+	}
+
 	// Hash password
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -92,9 +105,9 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Create user with specified role (least privilege - explicit role assignment)
 	result, err := db.DB.Exec(`
-		INSERT INTO users (username, password_hash, role, created_at)
-		VALUES (?, ?, ?, ?)
-	`, req.Username, string(hash), req.Role, time.Now())
+		INSERT INTO users (username, email, password_hash, role, created_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, req.Username, req.Email, string(hash), req.Role, time.Now())
 
 	if err != nil {
 		respondError(w, "Failed to create user", http.StatusInternalServerError)
@@ -108,6 +121,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		"message": "User created successfully",
 		"user_id": userID,
 		"username": req.Username,
+		"email":    req.Email,
 		"role":     req.Role,
 	})
 }
@@ -119,9 +133,9 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 
 	var user models.User
 	err := db.DB.QueryRow(`
-		SELECT id, username, role, created_at
+		SELECT id, username, COALESCE(email, '') as email, role, created_at
 		FROM users WHERE id = ?
-	`, id).Scan(&user.ID, &user.Username, &user.Role, &user.CreatedAt)
+	`, id).Scan(&user.ID, &user.Username, &user.Email, &user.Role, &user.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		respondError(w, "User not found", http.StatusNotFound)
@@ -141,6 +155,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 
 	var req struct {
+		Email       string `json:"email"`
 		Role        string `json:"role"`
 		NewPassword string `json:"new_password"`
 	}
@@ -166,6 +181,23 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 		if currentRole == "admin" && adminCount <= 1 {
 			respondError(w, "Cannot change role: at least one admin user must exist", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Update email if provided
+	if req.Email != "" {
+		// Check if email already exists for another user
+		var existingID int
+		err := db.DB.QueryRow("SELECT id FROM users WHERE email = ? AND id != ?", req.Email, id).Scan(&existingID)
+		if err == nil {
+			respondError(w, "Email already exists", http.StatusConflict)
+			return
+		}
+
+		_, err = db.DB.Exec("UPDATE users SET email = ? WHERE id = ?", req.Email, id)
+		if err != nil {
+			respondError(w, "Failed to update email", http.StatusInternalServerError)
 			return
 		}
 	}

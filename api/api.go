@@ -78,6 +78,7 @@ func RegisterRoutes(r *mux.Router) {
 	// Assessment routes (Admin)
 	r.HandleFunc("/assessments", RequireAdmin(GetAssessments)).Methods("GET")
 	r.HandleFunc("/assessments", RequireAdmin(CreateAssessment)).Methods("POST")
+	r.HandleFunc("/assessments/generate-dynamic", RequireAdmin(GenerateDynamicAssessment)).Methods("POST")
 	r.HandleFunc("/assessments/{id}", RequireAdmin(GetAssessment)).Methods("GET")
 	r.HandleFunc("/assessments/{id}", RequireAdmin(UpdateAssessment)).Methods("PUT")
 	r.HandleFunc("/assessments/{id}", RequireAdmin(DeleteAssessment)).Methods("DELETE")

@@ -245,6 +245,68 @@ func runMigrations() error {
 		return err
 	}
 
+	// Add email column to users table if it doesn't exist
+	err = DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('users') WHERE name='email'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		_, err = DB.Exec("ALTER TABLE users ADD COLUMN email TEXT")
+		if err != nil {
+			return err
+		}
+		log.Println("Migration: Added email column to users table")
+	}
+
+	// Add dynamic assessment columns to assessments table
+	err = DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('assessments') WHERE name='is_dynamic'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		_, err = DB.Exec("ALTER TABLE assessments ADD COLUMN is_dynamic INTEGER DEFAULT 0")
+		if err != nil {
+			return err
+		}
+		log.Println("Migration: Added is_dynamic column to assessments table")
+	}
+
+	err = DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('assessments') WHERE name='behavior_type'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		_, err = DB.Exec("ALTER TABLE assessments ADD COLUMN behavior_type TEXT")
+		if err != nil {
+			return err
+		}
+		log.Println("Migration: Added behavior_type column to assessments table")
+	}
+
+	err = DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('assessments') WHERE name='target_email'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		_, err = DB.Exec("ALTER TABLE assessments ADD COLUMN target_email TEXT")
+		if err != nil {
+			return err
+		}
+		log.Println("Migration: Added target_email column to assessments table")
+	}
+
+	err = DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('assessments') WHERE name='campaign_id'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		_, err = DB.Exec("ALTER TABLE assessments ADD COLUMN campaign_id INTEGER")
+		if err != nil {
+			return err
+		}
+		log.Println("Migration: Added campaign_id column to assessments table")
+	}
+
 	return nil
 }
 
