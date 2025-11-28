@@ -886,61 +886,78 @@ async function viewAssessmentStats(id) {
 }
 
 async function showDynamicAssessmentForm() {
-    // Get list of campaigns to select from
-    const campaigns = await api.get('/campaigns');
+    console.log('🔍 showDynamicAssessmentForm called');
 
-    if (!campaigns || campaigns.length === 0) {
-        showMessage('No campaigns found. Please create a campaign first.', 'error');
-        return;
-    }
+    try {
+        // Get list of campaigns to select from
+        const campaigns = await api.get('/campaigns');
+        console.log('📊 Campaigns loaded:', campaigns);
 
-    const campaignOptions = campaigns.map(c =>
-        `<option value="${c.id}">${c.name} (${c.status})</option>`
-    ).join('');
-
-    showModal('Generate Dynamic Assessment', `
-        <div class="form-group">
-            <label>Select Campaign</label>
-            <select id="dynamic-campaign-select" class="form-control">
-                ${campaignOptions}
-            </select>
-            <small style="color: #666; display: block; margin-top: 5px;">
-                Dynamic assessments will be generated based on user behavior in the selected campaign.
-                Different assessments are created for users who:
-                <ul style="margin-top: 10px;">
-                    <li>Clicked and submitted credentials</li>
-                    <li>Clicked but reported the email</li>
-                    <li>Only reported without clicking</li>
-                </ul>
-            </small>
-        </div>
-        <button id="confirm-dynamic-assessment" class="btn btn-primary" style="margin-top: 15px;">Generate Assessments</button>
-    `);
-
-    document.getElementById('confirm-dynamic-assessment').addEventListener('click', async () => {
-        const campaignId = parseInt(document.getElementById('dynamic-campaign-select').value);
-
-        if (!campaignId) {
-            showMessage('Please select a campaign', 'error');
+        if (!campaigns || campaigns.length === 0) {
+            showMessage('No campaigns found. Please create a campaign first.', 'error');
             return;
         }
 
-        document.getElementById('confirm-dynamic-assessment').disabled = true;
-        document.getElementById('confirm-dynamic-assessment').textContent = 'Generating...';
+        const campaignOptions = campaigns.map(c =>
+            `<option value="${c.id}">${c.name} (${c.status})</option>`
+        ).join('');
 
-        const result = await api.post('/assessments/generate-dynamic', {
-            campaign_id: campaignId
+        showModal('Generate Dynamic Assessment', `
+            <div class="form-group">
+                <label>Select Campaign</label>
+                <select id="dynamic-campaign-select" class="form-control">
+                    ${campaignOptions}
+                </select>
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    Dynamic assessments will be generated based on user behavior in the selected campaign.
+                    Different assessments are created for users who:
+                    <ul style="margin-top: 10px;">
+                        <li>Clicked and submitted credentials</li>
+                        <li>Clicked but reported the email</li>
+                        <li>Only reported without clicking</li>
+                    </ul>
+                </small>
+            </div>
+            <button id="confirm-dynamic-assessment" class="btn btn-primary" style="margin-top: 15px;">Generate Assessments</button>
+        `);
+
+        document.getElementById('confirm-dynamic-assessment').addEventListener('click', async () => {
+            console.log('🎯 Generate button clicked');
+            const campaignId = parseInt(document.getElementById('dynamic-campaign-select').value);
+
+            if (!campaignId) {
+                showMessage('Please select a campaign', 'error');
+                return;
+            }
+
+            document.getElementById('confirm-dynamic-assessment').disabled = true;
+            document.getElementById('confirm-dynamic-assessment').textContent = 'Generating...';
+
+            try {
+                const result = await api.post('/assessments/generate-dynamic', {
+                    campaign_id: campaignId
+                });
+
+                if (result && result.success) {
+                    closeModal();
+                    showMessage(`Successfully generated ${result.count} dynamic assessments!`, 'success');
+                    loadAssessments(); // Reload the assessments list
+                } else {
+                    showMessage(result?.error || 'Failed to generate assessments', 'error');
+                    document.getElementById('confirm-dynamic-assessment').disabled = false;
+                    document.getElementById('confirm-dynamic-assessment').textContent = 'Generate Assessments';
+                }
+            } catch (error) {
+                console.error('❌ Error generating assessments:', error);
+                showMessage('Error generating assessments: ' + error.message, 'error');
+                document.getElementById('confirm-dynamic-assessment').disabled = false;
+                document.getElementById('confirm-dynamic-assessment').textContent = 'Generate Assessments';
+            }
         });
-
-        if (result && result.success) {
-            closeModal();
-            showMessage(`Successfully generated ${result.count} dynamic assessments!`, 'success');
-            loadAssessments(); // Reload the assessments list
-        } else {
-            document.getElementById('confirm-dynamic-assessment').disabled = false;
-            document.getElementById('confirm-dynamic-assessment').textContent = 'Generate Assessments';
-        }
-    });
+    } catch (error) {
+        console.error('❌ Error in showDynamicAssessmentForm:', error);
+        showMessage('Error loading form: ' + error.message, 'error');
+    }
 }
 
 function showAssessmentForm() {
@@ -1461,7 +1478,12 @@ function showUserForm() {
             <div class="form-group">
                 <label>Username</label>
                 <input type="text" name="username" required>
-                <small>Must be unique</small>
+                <small>Display name for the user (must be unique)</small>
+            </div>
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" name="email" required>
+                <small>Must be a valid email address (used for login and assessments)</small>
             </div>
             <div class="form-group">
                 <label>Password</label>
@@ -1492,6 +1514,7 @@ function showUserForm() {
         e.preventDefault();
         const formData = new FormData(e.target);
         const username = formData.get('username');
+        const email = formData.get('email');
         const password = formData.get('password');
         const confirmPassword = formData.get('confirm_password');
         const role = formData.get('role');
@@ -1501,7 +1524,7 @@ function showUserForm() {
             return;
         }
 
-        const result = await api.post('/users', { username, password, role });
+        const result = await api.post('/users', { username, email, password, role });
         if (result && result.success) {
             closeModal();
             loadUsers();
@@ -2696,9 +2719,16 @@ function initializeAllEventListeners() {
     // Generate Dynamic Assessment button
     const generateDynamicAssessmentBtn = document.getElementById('generate-dynamic-assessment-btn');
     if (generateDynamicAssessmentBtn && !generateDynamicAssessmentBtn.hasListener) {
-        generateDynamicAssessmentBtn.addEventListener('click', () => showDynamicAssessmentForm());
+        generateDynamicAssessmentBtn.addEventListener('click', () => {
+            console.log('🚀 Generate Dynamic Assessment button clicked!');
+            showDynamicAssessmentForm();
+        });
         generateDynamicAssessmentBtn.hasListener = true;
         console.log('✓ Generate Dynamic Assessment button initialized');
+    } else if (!generateDynamicAssessmentBtn) {
+        console.warn('⚠️ Generate Dynamic Assessment button not found in DOM');
+    } else {
+        console.log('ℹ️ Generate Dynamic Assessment button already has listener');
     }
 
     console.log('✅ All event listeners initialized successfully!');
