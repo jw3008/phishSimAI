@@ -65,9 +65,23 @@ Please generate a realistic phishing email template with the following structure
 1. A compelling subject line
 2. HTML email body that looks professional and convincing
 3. A call-to-action that would lead to a landing page
+4. A "Report as phishing" link at the bottom
 
 The email should use common phishing tactics like urgency, authority, or curiosity.
-Include placeholders for: {{.FirstName}}, {{.LastName}}, {{.Email}}, {{.TrackingURL}}
+
+IMPORTANT: You MUST include these exact placeholders in the HTML:
+- {{.FirstName}} - recipient's first name
+- {{.LastName}} - recipient's last name
+- {{.Email}} - recipient's email address
+- {{.URL}} - the main call-to-action link (this MUST be an <a href="{{.URL}}"> tag)
+- {{.ReportURL}} - the report phishing link (this MUST be an <a href="{{.ReportURL}}"> tag)
+
+Example structure:
+<h2>Email Subject Here</h2>
+<p>Hi {{.FirstName}},</p>
+<p>Main content here...</p>
+<p><a href="{{.URL}}">Click Here</a></p>
+<p><a href="{{.ReportURL}}">Report as phishing</a></p>
 
 Respond in JSON format:
 {
@@ -218,9 +232,23 @@ Please generate a realistic phishing email template with the following structure
 1. A compelling subject line
 2. HTML email body that looks professional and convincing
 3. A call-to-action that would lead to a landing page
+4. A "Report as phishing" link at the bottom
 
 The email should use common phishing tactics like urgency, authority, or curiosity.
-Include placeholders for: {{.FirstName}}, {{.LastName}}, {{.Email}}, {{.TrackingURL}}
+
+IMPORTANT: You MUST include these exact placeholders in the HTML:
+- {{.FirstName}} - recipient's first name
+- {{.LastName}} - recipient's last name
+- {{.Email}} - recipient's email address
+- {{.URL}} - the main call-to-action link (this MUST be an <a href="{{.URL}}"> tag)
+- {{.ReportURL}} - the report phishing link (this MUST be an <a href="{{.ReportURL}}"> tag)
+
+Example structure:
+<h2>Email Subject Here</h2>
+<p>Hi {{.FirstName}},</p>
+<p>Main content here...</p>
+<p><a href="{{.URL}}">Click Here</a></p>
+<p><a href="{{.ReportURL}}">Report as phishing</a></p>
 
 Respond in JSON format:
 {

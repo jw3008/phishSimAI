@@ -885,8 +885,6 @@ async function viewAssessmentStats(id) {
     `);
 }
 
-document.getElementById('new-assessment-btn')?.addEventListener('click', () => showAssessmentForm());
-
 async function showDynamicAssessmentForm() {
     // Get list of campaigns to select from
     const campaigns = await api.get('/campaigns');
