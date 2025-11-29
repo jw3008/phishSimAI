@@ -886,7 +886,7 @@ async function showDynamicAssessmentForm() {
         console.log('📊 Campaigns loaded:', campaigns);
 
         if (!campaigns || campaigns.length === 0) {
-            showMessage('No campaigns found. Please create a campaign first.', 'error');
+            alert('No campaigns found. Please create a campaign first.');
             return;
         }
 
@@ -918,7 +918,7 @@ async function showDynamicAssessmentForm() {
             const campaignId = parseInt(document.getElementById('dynamic-campaign-select').value);
 
             if (!campaignId) {
-                showMessage('Please select a campaign', 'error');
+                alert('Please select a campaign');
                 return;
             }
 
@@ -932,23 +932,23 @@ async function showDynamicAssessmentForm() {
 
                 if (result && result.success) {
                     closeModal();
-                    showMessage(`Successfully generated ${result.count} dynamic assessments!`, 'success');
+                    alert(`Successfully generated ${result.count} dynamic assessments!`);
                     loadAssessments(); // Reload the assessments list
                 } else {
-                    showMessage(result?.error || 'Failed to generate assessments', 'error');
+                    alert(result?.error || 'Failed to generate assessments');
                     document.getElementById('confirm-dynamic-assessment').disabled = false;
                     document.getElementById('confirm-dynamic-assessment').textContent = 'Generate Assessments';
                 }
             } catch (error) {
                 console.error('❌ Error generating assessments:', error);
-                showMessage('Error generating assessments: ' + error.message, 'error');
+                alert('Error generating assessments: ' + error.message);
                 document.getElementById('confirm-dynamic-assessment').disabled = false;
                 document.getElementById('confirm-dynamic-assessment').textContent = 'Generate Assessments';
             }
         });
     } catch (error) {
         console.error('❌ Error in showDynamicAssessmentForm:', error);
-        showMessage('Error loading form: ' + error.message, 'error');
+        alert('Error loading form: ' + error.message);
     }
 }
 
@@ -2163,7 +2163,8 @@ async function downloadEmailAnalysisPDF() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
 
-        showMessage('PDF report downloaded successfully!', 'success');
+        // Success - PDF downloaded
+        console.log('PDF report downloaded successfully!');
     } catch (error) {
         console.error('Error downloading PDF:', error);
         alert('Failed to download PDF report: ' + error.message);
