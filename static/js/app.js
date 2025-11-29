@@ -806,15 +806,7 @@ async function viewAssessment(id) {
         <hr>
         <h3>Questions</h3>
         ${questionsHTML}
-        <br>
-        <button class="btn btn-primary" onclick="editAssessmentForm(${id})">Edit Assessment</button>
     `);
-}
-
-function editAssessmentForm(id) {
-    // For simplicity, we'll redirect to the create form with pre-filled data
-    // In production, you'd want a more sophisticated edit interface
-    alert('Edit functionality - Would open a detailed editor. For now, please create a new assessment or use the API.');
 }
 
 async function publishAssessment(id) {
@@ -2126,10 +2118,63 @@ function initEmailAnalyzerAwareness() {
     setupEmailAnalyzerAwarenessHandlers();
 }
 
+async function downloadEmailAnalysisPDF() {
+    if (!lastEmailAnalysisResult || !lastEmailAnalyzedText) {
+        alert('No analysis result available. Please analyze an email first.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/analyze-email/pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                email_text: lastEmailAnalyzedText,
+                is_phishing: lastEmailAnalysisResult.is_phishing,
+                confidence_score: lastEmailAnalysisResult.confidence_score || 0,
+                risk_level: lastEmailAnalysisResult.risk_level || 'unknown',
+                indicators: lastEmailAnalysisResult.indicators || [],
+                explanation: lastEmailAnalysisResult.explanation || '',
+                recommendations: lastEmailAnalysisResult.recommendations || []
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to generate PDF');
+        }
+
+        // Create a blob from the response
+        const blob = await response.blob();
+
+        // Create a temporary URL for the blob
+        const url = window.URL.createObjectURL(blob);
+
+        // Create a temporary anchor element and trigger download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'email-analysis-report.pdf';
+        document.body.appendChild(a);
+        a.click();
+
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        showMessage('PDF report downloaded successfully!', 'success');
+    } catch (error) {
+        console.error('Error downloading PDF:', error);
+        alert('Failed to download PDF report: ' + error.message);
+    }
+}
+
 function setupEmailAnalyzerAwarenessHandlers() {
     // Analyze Email Button (Awareness Page)
     const analyzeBtn = document.getElementById('analyze-email-awareness-btn');
     const clearBtn = document.getElementById('clear-email-awareness-btn');
+    const downloadPDFBtn = document.getElementById('download-analysis-pdf-btn');
 
     if (analyzeBtn) {
         // Remove old listeners
@@ -2191,9 +2236,27 @@ function setupEmailAnalyzerAwarenessHandlers() {
             document.getElementById('analysis-result-awareness').style.display = 'none';
         });
     }
+
+    if (downloadPDFBtn) {
+        // Remove old listeners
+        const newDownloadBtn = downloadPDFBtn.cloneNode(true);
+        downloadPDFBtn.parentNode.replaceChild(newDownloadBtn, downloadPDFBtn);
+
+        newDownloadBtn.addEventListener('click', () => {
+            downloadEmailAnalysisPDF();
+        });
+    }
 }
 
+// Global variable to store last analysis result
+let lastEmailAnalysisResult = null;
+let lastEmailAnalyzedText = '';
+
 function displayAnalysisResultAwareness(result) {
+    // Store result globally for PDF download
+    lastEmailAnalysisResult = result;
+    lastEmailAnalyzedText = document.getElementById('email-text-awareness').value.trim();
+
     const summaryDiv = document.getElementById('result-summary-awareness');
     const indicatorsDiv = document.getElementById('result-indicators-awareness');
     const explanationDiv = document.getElementById('result-explanation-awareness');

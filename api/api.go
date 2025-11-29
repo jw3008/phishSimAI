@@ -102,6 +102,7 @@ func RegisterRoutes(r *mux.Router) {
 
 	// Email Phishing Analysis (All authenticated users)
 	r.HandleFunc("/analyze-email", RequireAuth(AnalyzePhishingEmail)).Methods("POST")
+	r.HandleFunc("/analyze-email/pdf", RequireAuth(GenerateEmailAnalysisPDF)).Methods("POST")
 
 	// User Settings routes (All authenticated users)
 	r.HandleFunc("/user/settings", RequireAuth(GetUserSettings)).Methods("GET")
