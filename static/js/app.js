@@ -1955,7 +1955,7 @@ function showApiOverloadMessage() {
 
             <h4 style="margin-top: 20px;">What This Means:</h4>
             <ul style="line-height: 1.8;">
-                <li>✅ Your PhishSimAI application is working correctly</li>
+                <li>✅ Your Clariphish application is working correctly</li>
                 <li>⚠️ Google's AI servers are temporarily overloaded</li>
                 <li>🔄 This is usually temporary and resolves within minutes</li>
             </ul>
@@ -2375,7 +2375,7 @@ function showApiOverloadMessageAwareness() {
 
             <h5 style="margin-top: 20px; color: #333;">What This Means:</h5>
             <ul style="line-height: 1.8; color: #333;">
-                <li>✅ Your PhishSimAI application is working correctly</li>
+                <li>✅ Your Clariphish application is working correctly</li>
                 <li>⚠️ Google's AI servers are temporarily overloaded</li>
                 <li>🔄 This is usually temporary and resolves within minutes</li>
             </ul>
